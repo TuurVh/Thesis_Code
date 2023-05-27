@@ -3,6 +3,7 @@ import plotting
 import tensorly as tl
 from tensorly.decomposition import parafac
 import numpy as np
+from test_utils import tensor_symmetric_test
 
 # Set print to print matrices and vectors in one line
 np.set_printoptions(linewidth=np.inf)
@@ -47,13 +48,15 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
         # plotting.plot_amount_calcs(big_t, k_hat, max_rank)
 
 def main():
-    path = "tensors/person3-5-10_all_ex_50ts.npy"
+    path = "tensors/person2all_ex_75ts.npy"
     big_t = np.load(path)
 
-    # big_t = random_tensor((3, 4, 4), 1, 20, seed=1)
-    print(big_t)
+    print(f"Tensor is symmetric? -> {tensor_symmetric_test(big_t)}")
 
-    compare_acas(big_t, max_rank=32, random_seed=0, plot=True)
+    # big_t = random_tensor((4, 4, 4), 1, 20, seed=1)
+    # print(big_t)
+
+    compare_acas(big_t, max_rank=3, random_seed=None, plot=True)
 
 
 if __name__ == "__main__":

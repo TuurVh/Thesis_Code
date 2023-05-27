@@ -166,10 +166,9 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         z_used.append(z_as)
 
         factors_aca = aca_as_cp(cols, rows, tubes, c_deltas, r_deltas)
-        reconstructed = None  # reconstruct_tensor(factors_aca)
+        reconstructed = reconstruct_tensor(factors_aca)
         print(reconstructed)
-        aca_norm, norm2 = compare_cp_with_full(cp=factors_aca, original=tensor)
-        print(norm2)
+        aca_norm = compare_cp_with_full(cp=factors_aca, original=tensor)
         aca_vects_norms.append(aca_norm)
 
         rank += 1
@@ -510,13 +509,13 @@ def compare_cp_with_full(cp, original):
     reconstructed = np.abs(reconstruct_tensor(cp))
     difference = np.subtract(original, reconstructed)
     # Calculate tensor norm (~Frobenius matrix norm)
-    f_norm2 = calc_norm(difference)
+    # f_norm2 = calc_norm(difference)
     f_norm = np.linalg.norm(difference)
     original_norm = np.linalg.norm(original)
-    original_norm2 = calc_norm(original)
-    norm = f_norm
-    norm2 = f_norm2/original_norm2
-    return norm, norm2
+    # original_norm2 = calc_norm(original)
+    norm = f_norm/original_norm
+    # norm2 = f_norm2/original_norm2
+    return norm
 
 
 def calc_norm(tensor):
