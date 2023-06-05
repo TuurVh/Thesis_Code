@@ -166,7 +166,7 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         z_used.append(z_as)
 
         factors_aca = aca_as_cp(cols, rows, tubes, c_deltas, r_deltas)
-        reconstructed = reconstruct_tensor(factors_aca)
+        reconstructed = reconstruct_tensor(factors_aca, symm=True)
         print(reconstructed)
         aca_norm = compare_cp_with_full(cp=factors_aca, original=tensor)
         aca_vects_norms.append(aca_norm)
@@ -374,6 +374,8 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
     if random_seed is not None:
         random.seed(random_seed)
 
+    # Generate samples
+
     # If no start column is given, initialize a random one.
     if start_matrix is None:
         z_as = random.randint(0, shape[0]-1)
@@ -396,9 +398,10 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
 
         approx = np.zeros(matrix.shape)
         for i in range(rank):
-            approx = np.add(approx, matrices[i] * tubes[i][z_as] * (1.0 / t_deltas[i]))
+            approx = np.add(approx, matrices[i] * tubes[i][z_as] * (1.0 / m_deltas[i]))
+            # print("approx: \n", approx)
         new_matrix = np.subtract(matrix, approx)
-        # print("col after", new_matrix)
+        # print("matrix after: \n", new_matrix)
 
         new_abs_matrix = abs(new_matrix)
         # Setting previously used scores to zero to make sure they are not used twice
@@ -463,7 +466,6 @@ def compare_aca_original(matrices, tubes, m_delta, original):
     # Fill diagonal of each frontal matrix in tensor with zeros
     for i in range(len(t)):
         np.fill_diagonal(t[i], 0)
-    # print("einsum \n", t)
 
     # Compare with original tensor
     difference = original-t
@@ -489,29 +491,32 @@ def aca_as_cp(cols, rows, tubes, col_delta, row_delta):
     combined_fs = [f_ts, f_cs, f_rs]
     weights = np.ones(len(row_delta))
     for w in range(len(weights)):
-        print("col_D", col_delta[w], "row_D", row_delta[w])
+        # print("col_D", col_delta[w], "row_D", row_delta[w])
         weights[w] = (1/col_delta[w]) * (1/row_delta[w])
     return weights, combined_fs
 
 
-def reconstruct_tensor(cp):
+def reconstruct_tensor(cp, symm=True):
     reconstructed = tl.cp_tensor.cp_to_tensor(cp)
 
     # Make all elements on diagonal 0.
     for i in range(len(reconstructed)):
         np.fill_diagonal(reconstructed[i], 0)
-        rit = reconstructed[i].T
-        reconstructed[i] = reconstructed[i]+rit
+        if symm:
+            rit = reconstructed[i].T
+            reconstructed[i] = reconstructed[i]+rit
     return reconstructed
 
 
 def compare_cp_with_full(cp, original):
-    reconstructed = np.abs(reconstruct_tensor(cp))
+    reconstructed = np.abs(reconstruct_tensor(cp, symm=False))
     difference = np.subtract(original, reconstructed)
     # Calculate tensor norm (~Frobenius matrix norm)
     # f_norm2 = calc_norm(difference)
     f_norm = np.linalg.norm(difference)
     original_norm = np.linalg.norm(original)
+    print("original norm = ", original_norm)
+    print("fnorm =", f_norm)
     # original_norm2 = calc_norm(original)
     norm = f_norm/original_norm
     # norm2 = f_norm2/original_norm2
@@ -527,6 +532,25 @@ def calc_norm(tensor):
                 s += (tensor[k, j, i] * tensor[k, j, i])
     res = np.sqrt(s)
     return res
+
+
+def generate_tube_samples(tensor):
+    zs, ys, xs = tensor.shape
+    amount = xs*ys
+    sample_indices = np.zeros(shape=(amount, 3), dtype=int)
+    sample_values = np.zeros(amount, dtype=float)
+
+    # Cycle over all elements in horizontal slice to use every tube, then take random element of that tube
+    for x in range(xs):
+        for y in range(ys):
+            a = x*xs + y
+            z = random.randint(0, zs-1)
+            sample_indices[a, 0] = z
+            sample_indices[a, 1] = y
+            sample_indices[a, 2] = x
+            sample_values[a] = get_element(x, y, z, tensor)
+
+    return sample_indices, sample_values
 
 
 def generate_samples(tensor, amount):
