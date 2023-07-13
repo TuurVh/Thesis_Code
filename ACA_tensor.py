@@ -1,19 +1,12 @@
 import random
 import numpy as np
 import tensorly as tl
-from tensorly.decomposition import parafac
-import plotting
-import clustering
-import matplotlib.pyplot as plt
-from sklearn.cluster import SpectralClustering
 
-
+# Set print to print matrices and vectors in one line
 np.set_printoptions(linewidth=np.inf)
 
 
-def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
-    print("shape", tensor.shape)
-
+def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=False):
     rows = []
     cols = []
     tubes = []
@@ -24,149 +17,192 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
     x_used = []
     y_used = []
     z_used = []
+    reconstructed = None
 
-    matrices = []
-    matrix_idx = []
-    m_deltas = []
-    aca_k_hat_norms = []
+    aca_vects_norms = []
 
     # Def shape of tensor
     shape = tensor.shape  # shape = (z, y, x)
+    print(shape)
 
     # If a random seed is given, use this.
     if random_seed is not None:
         random.seed(random_seed)
 
+    # Generate random samples for stopping criteria
+    # amount = 2
+    # sample_indices = np.zeros(shape=(amount, 3), dtype=int)
+    # sample_values = np.zeros(amount, dtype=float)
+    # a = 0
+    # sample_indices[a, 0] = 1
+    # sample_indices[a, 1] = 0
+    # sample_indices[a, 2] = 1
+    # sample_values[a] = get_element(1, 0, 1, tensor)
+    # a = 1
+    # sample_indices[a, 0] = 0
+    # sample_indices[a, 1] = 1
+    # sample_indices[a, 2] = 0
+    # sample_values[a] = get_element(0, 1, 0, tensor)
+
+    sample_indices, sample_values = generate_samples(tensor, max_rank)
+    print(f"Sample indices: {sample_indices} \n with sample values {sample_values}")
+    sample_size = len(sample_values)
+
     # If no start column is given, initialize a random one.
-    if start_tube is None:
-        x_as = random.randint(0, shape[2]-1)
-        y_as = random.randint(0, shape[1]-1)
-        while y_as == x_as:
-            y_as = random.randint(0, shape[1]-1)
-        print(f"chosen tube: x={x_as}, y={y_as}")
+    if start_col is None:
+        max_sample = np.max(np.abs(sample_values))
+        index_sample_max = np.where(np.abs(sample_values) == max_sample)[0][0]
+
+        x_as = sample_indices[index_sample_max, 1]
+        z_as = sample_indices[index_sample_max, 0]
+        print(f"chosen col: x={x_as}, z={z_as}")
 
     else:
-        x_as = start_tube[0]
-        y_as = start_tube[1]
+        x_as = start_col[0]
+        z_as = start_col[1]
 
     x_used.append(x_as)
-    y_used.append(y_as)
+    z_used.append(z_as)
 
     rank = 0
-
     # Select new skeletons until desired rank is reached.
     while rank < max_rank:
-        print("x_used", x_used)
-        print("y_used", y_used)
-        print("z_used", z_used)
 
         print(f"--------------------- RANK {rank} ----------------------")
         # print(tensor[z_as])
-        #  --------- TUBES ---------
-        tube_fiber = tensor[:, y_as, x_as]
+
+        # --------- COLUMNS ---------
+        col_fiber = get_fiber(tensor, k=z_as, i=x_as)
+        print("col before", col_fiber)
+
+        if reconstructed is None:
+            approx = np.zeros(len(col_fiber))
+            for i in range(rank):
+                approx = np.add(approx, cols[i] * rows[i][x_as] * tubes[i][z_as] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
+            print("A:", approx)
+        else:
+            approx = get_fiber(reconstructed, k=z_as, i=x_as)
+            print("A:", approx)
+
+        new_col = np.subtract(col_fiber, approx)
+        print("col after", new_col)
+
+        previous = [i for i, item in enumerate(z_used[0:len(z_used)-1]) if item == z_as]
+        print("previous y", y_used)
+        to_delete = [y_used[p] for p in previous]
+        print("y to delete", to_delete)
+        col_without_previous = set_to_zero(to_delete, new_col)
+        max_val, y_as = find_largest_absolute_value(col_without_previous)
+
+        print(f"max val: {max_val} on Y pos: {y_as}")
+        cols.append(new_col)
+        c_deltas.append(max_val)
+        y_used.append(y_as)
+
+        # --------- ROWS ---------
+        row_fiber = get_fiber(tensor, k=z_as, j=y_as)
+        print("r before", row_fiber)
+
+        if reconstructed is None:
+            approx = np.zeros(len(row_fiber))
+            for i in range(rank):
+                approx = np.add(approx,
+                                cols[i][y_as] * rows[i] * tubes[i][z_as] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
+            print("A", approx)
+        else:
+            approx = get_fiber(reconstructed, k=z_as, j=y_as)
+            print("A:", approx)
+
+        new_row = np.subtract(row_fiber, approx)
+        print("r after", new_row)
+
+        new_abs_row = abs(new_row)
+        previous = [i for i, item in enumerate(y_used[0:len(y_used)-1]) if item == y_as]
+        # print("prevous x", x_used)
+
+        # Needed when adding first chosen column
+        to_delete = [x_used[p+1] for p in previous]
+
+        # to_delete = [x_used[p] for p in previous]
+        # print("x to delete", to_delete)
+        row_without_previous = set_to_zero(to_delete, new_row)
+        max_val, x_as = find_largest_absolute_value(row_without_previous)
+
+        print(f"max val: {max_val} on X pos: {x_as}")
+        rows.append(new_row)
+        r_deltas.append(max_val)
+        x_used.append(x_as)
+
+        # --------- TUBES ---------
+        print(x_used)
+        print("takes:", y_as, ", ", x_as)
+        tube_fiber = get_fiber(tensor, j=y_as, i=x_as)
         print("t:", tube_fiber)
 
-        approx = np.zeros(len(tube_fiber))
-        for i in range(rank):
-            approx = np.add(approx, matrices[i][m_idx] * tubes[i] * (1.0 / m_deltas[i]))
+        if reconstructed is None:
+            approx = np.zeros(len(tube_fiber))
+            for i in range(rank):
+                approx = np.add(approx,
+                                cols[i][y_as] * rows[i][x_as] * tubes[i] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
+        else:
+            approx = get_fiber(reconstructed, j=y_as, i=x_as)
+            print("A:", approx)
+
         new_tube = np.subtract(tube_fiber, approx)
         print("t after:", new_tube)
 
-        new_abs_tube = abs(new_tube)
-        tube_without_previous = np.delete(new_abs_tube, z_used, axis=0)
-        max_val = np.max(tube_without_previous)
-        z_as = np.where(new_abs_tube == max_val)[0][0]
-        print(f"max val: {new_tube[z_as]} on Z pos: {z_as}")
+        previous = [i for i, item in enumerate(x_used[0:len(x_used)-1]) if item == x_as]
+        print("previous z", z_used)
+        to_delete = [z_used[p] for p in previous]
+        print("z to delete", to_delete)
+        t = new_tube.copy()
+        tube_without_previous = set_to_zero(to_delete, t)
+        z_max, z_as = find_largest_absolute_value(tube_without_previous)
+
+        print(f"max val: {z_max} on Z pos: {z_as}")
 
         tubes.append(new_tube)
-        t_deltas.append(new_tube[z_as])
+        t_deltas.append(z_max)
         z_used.append(z_as)
 
-        # Save cols and rows in subset
-        k_cols = []
-        c_ds = []
-        yc_used = y_used.copy()
-        k_rows = []
-        r_ds = []
-        xr_used = x_used.copy()
-        # Loop to select k_hat cols and rows for current tube
-        k = 0
-        while k < k_hat:
-            # --------- COLUMNS ---------
-            col_fiber = tensor[z_as, :, x_as]
-            print("col before", col_fiber)
+        factors_aca = aca_as_cp(cols, rows, tubes, c_deltas, r_deltas)
+        reconstructed = reconstruct_tensor(factors_aca, symm=True)
+        print(reconstructed)
+        aca_norm = compare_cp_with_full(cp=factors_aca, original=tensor)
+        aca_vects_norms.append(aca_norm)
 
-            approx = np.zeros(len(col_fiber))
-            for i in range(k):
-                approx = np.add(approx, k_cols[i] * k_rows[i][x_as] * (1.0 / r_ds[i]) )
-            new_col = np.subtract(col_fiber, approx)
-            print("col after", new_col)
-
-            new_abs_col = abs(new_col)
-            col_without_previous = np.delete(new_abs_col, yc_used, axis=0)
-            max_val_y = np.max(col_without_previous)
-            y_as = np.where(new_abs_col == max_val_y)[0][0]
-
-            print(f"max val: {max_val_y} on Y pos: {y_as}")
-
-            k_cols.append(new_col)
-            c_ds.append(max_val_y)
-            yc_used.append(y_as)
-
-            # --------- ROWS ---------
-            row_fiber = tensor[z_as, y_as, :]
-            print("r before", row_fiber)
-
-            approx = np.zeros(len(row_fiber))
-            for i in range(k):
-                approx = np.add(approx, k_cols[i][y_as] * k_rows[i] * (1.0 / c_ds[i]) )
-            new_row = np.subtract(row_fiber, approx)
-            print("r after", new_row)
-
-            new_abs_row = abs(new_row)
-            row_without_previous = np.delete(new_abs_row, xr_used, axis=0)
-            max_val_x = np.max(row_without_previous)
-            x_as = np.where(new_abs_row == max_val_x)[0][0]
-
-            print(f"max val: {max_val_x} on X pos: {x_as}")
-
-            k_rows.append(new_row)
-            r_ds.append(max_val_x)
-            xr_used.append(x_as)
-
-            k += 1
-
-        k_cols = np.vstack(k_cols)
-        temp = [np.divide(k_row, rd) for k_row, rd in zip(k_rows, r_ds)]
-        k_rows = (np.vstack(temp))
-
-        matrix = np.dot(k_cols.T, k_rows)
-        matrices.append(matrix)
-        print("matrix", matrix.shape)
-        new_abs_matrix = abs(matrix)
-        for idx in matrix_idx:
-            # symmetric matrix
-            i, j = idx
-            new_abs_matrix[i][j] = 0
-            new_abs_matrix[j][i] = 0
-
-        m_idx = np.unravel_index(np.argmax(new_abs_matrix), matrix.shape)
-        max_val = matrix[m_idx]
-        print(f"max val: {max_val} on matrix pos: {m_idx}")
-        x_used.append(m_idx[1])
-        y_used.append(m_idx[0])
-        matrix_idx.append(m_idx)
-        m_deltas.append(max_val)
-
-        aca_norm = compare_aca_original(matrices, tubes, t_deltas, tensor)
-        aca_k_hat_norms.append(aca_norm)
-
-        cols.append(new_col)
-        c_deltas.append(max_val_y)
-        rows.append(new_row)
-        r_deltas.append(max_val_x)
         rank += 1
-    return aca_k_hat_norms
+
+    if to_cluster:
+        return cols, rows, tubes, c_deltas, r_deltas, r_deltas
+    else:
+        return aca_vects_norms
+
+
+def find_largest_absolute_value(fiber):
+    max_abs_value = None
+    max_value = None
+    index = None
+
+    for i, num in enumerate(fiber):
+        abs_value = abs(num)
+        if max_abs_value is None or abs_value > max_abs_value:
+            max_abs_value = abs_value
+            max_value = num
+            index = i
+
+    if max_value is None:
+        return None, None
+
+    return max_value, index
+
+
+def set_to_zero(indices, numbers):
+    for index in indices:
+        if index < len(numbers):
+            numbers[index] = 0
+    return numbers
+
 
 def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
     print("shape", tensor.shape)
@@ -213,11 +249,11 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
 
     # Select new skeletons until desired rank is reached.
     while rank < max_rank:
+
+        print(f"--------------------- RANK {rank} ----------------------")
         print("x_used", x_used)
         print("y_used", y_used)
         print("z_used", z_used)
-
-        print(f"--------------------- RANK {rank} ----------------------")
         # print(tensor[z_as])
         #  --------- TUBES ---------
         tube_fiber = tensor[:, y_as, x_as]
@@ -225,7 +261,7 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
 
         approx = np.zeros(len(tube_fiber))
         for i in range(rank):
-            approx = np.add(approx, matrices[i][m_idx] * tubes[i] * (1.0 / m_deltas[i]))
+            approx = np.add(approx, cols[i][y_as] * rows[i][x_as] * tubes[i] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
         new_tube = np.subtract(tube_fiber, approx)
         print("t after:", new_tube)
 
@@ -300,22 +336,14 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
             print("matrix", matrix.shape)
 
         matrices.append(m_tot)
-        new_abs_matrix = abs(m_tot)
-        for idx in matrix_idx:
-            # symmetric matrix
-            i, j = idx
-            new_abs_matrix[i][j] = 0
-            new_abs_matrix[j][i] = 0
-
-        m_idx = np.unravel_index(np.argmax(new_abs_matrix), m_tot.shape)
+        m_idx = np.unravel_index(np.argmax(abs(m_tot)), m_tot.shape)
         max_val = m_tot[m_idx]
-        print(f"max val: {max_val} on matrix pos: {m_idx}")
-        x_used.append(m_idx[1])
-        y_used.append(m_idx[0])
-        matrix_idx.append(m_idx)
         m_deltas.append(max_val)
 
-        aca_norm = compare_aca_original(matrices, tubes, t_deltas, tensor)
+        x_used.append(x_as)
+        y_used.append(y_as)
+
+        aca_norm = compare_aca_original(matrices, tubes, m_deltas, tensor)
         aca_k_hat_norms.append(aca_norm)
 
         cols.append(new_col)
@@ -326,8 +354,7 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
     return aca_k_hat_norms
 
 
-
-def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None):
+def aca_matrix_x_vector(tensor, max_rank, start_tube=None, random_seed=None, to_cluster=False):
     # The already chosen matrices and tubes are stored.
     matrices = []
     tubes = []
@@ -338,6 +365,8 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None):
     matrix_idx = []
     tubes_idx = []
 
+    aca_matrix_norms = []
+
     # Def shape of tensor
     shape = tensor.shape  # shape = (z, y, x)
 
@@ -345,14 +374,26 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None):
     if random_seed is not None:
         random.seed(random_seed)
 
-    # If no start column is given, initialize a random one.
-    if start_matrix is None:
-        z_as = random.randint(0, shape[0]-1)
-        print(f"chosen matrix: z={z_as}")
+    # Generate samples for stopping criteria and better start.
+    sample_indices, sample_values = generate_tube_samples(tensor)
+    print(f"Sample indices: {sample_indices} \n with sample values {sample_values}")
+    sample_size = len(sample_values)
+
+    # If no start matrix is given, initialize a random one.
+    if start_tube is None:
+        max_sample = np.max(np.abs(sample_values))
+        index_sample_max = np.where(np.abs(sample_values) == max_sample)[0][0]
+
+        x_as = sample_indices[index_sample_max, 2]
+        y_as = sample_indices[index_sample_max, 1]
+        print(f"chosen tube: x={x_as}, y={y_as}")
 
     else:
-        z_as = start_matrix
-    tubes_idx.append(z_as)
+        x_as = start_tube[0]
+        y_as = start_tube[1]
+
+    m_idx = [y_as, x_as]
+    matrix_idx.append(m_idx)
 
     rank = 0
     # Select new skeletons until desired rank is reached.
@@ -361,15 +402,38 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None):
         print(f"--------------------- RANK {rank} ----------------------")
         # print(tensor[z_as])
 
+        # --------- TUBES ---------
+        y_as = m_idx[0]
+        x_as = m_idx[1]
+        tube_fiber = tensor[:, y_as, x_as]
+        # print("t:", m_idx, "; ", tube_fiber)
+
+        approx = np.zeros(len(tube_fiber))
+        for i in range(rank):
+            approx = np.add(approx, matrices[i][m_idx] * tubes[i] * (1.0 / t_deltas[i]))
+        new_tube = np.subtract(tube_fiber, approx)
+
+        print("t after:", new_tube)
+        new_abs_tube = abs(new_tube)
+        tube_without_previous = np.delete(new_abs_tube, tubes_idx, axis=0)
+        max_val = np.max(tube_without_previous)
+        z_as = np.where(new_abs_tube == max_val)[0][0]
+        print(f"max val: {max_val} on Z pos: {z_as}")
+
+        tubes.append(new_abs_tube)
+        t_deltas.append(max_val)
+        tubes_idx.append(z_as)
+
         # --------- MATRICES ---------
         matrix = tensor[z_as, :, :]
-        # print("matrix before", matrix)
+        print("matrix before", z_as, "; ", matrix)
 
         approx = np.zeros(matrix.shape)
         for i in range(rank):
             approx = np.add(approx, matrices[i] * tubes[i][z_as] * (1.0 / t_deltas[i]))
+            # print("approx: \n", approx)
         new_matrix = np.subtract(matrix, approx)
-        # print("col after", new_matrix)
+        print("matrix after: \n", new_matrix)
 
         new_abs_matrix = abs(new_matrix)
         # Setting previously used scores to zero to make sure they are not used twice
@@ -380,325 +444,157 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None):
             new_abs_matrix[j][i] = 0
 
         m_idx = np.unravel_index(np.argmax(new_abs_matrix), new_matrix.shape)
-        max_val = matrix[m_idx]
+        max_val = new_matrix[m_idx]
         print(f"max val: {max_val} on Y pos: {m_idx}")
 
         matrices.append(new_matrix)
         m_deltas.append(max_val)
         matrix_idx.append(m_idx)
 
-        # --------- TUBES ---------
-        y_as = m_idx[0]
-        x_as = m_idx[1]
-        tube_fiber = tensor[:, y_as, x_as]
-        print("t:", tube_fiber)
-
-        approx = np.zeros(len(tube_fiber))
-        for i in range(rank):
-            approx = np.add(approx, matrices[i][m_idx] * tubes[i] * (1.0 / m_deltas[i]))
-        new_tube = np.subtract(tube_fiber, approx)
-
-        print("t after:", new_tube)
-        new_abs_tube = abs(new_tube)
-        tube_without_previous = np.delete(new_abs_tube, tubes_idx, axis=0)
-        max_val = np.max(tube_without_previous)
-        z_as = np.where(new_abs_tube == max_val)[0][0]
-        print(f"max val: {(new_tube[z_as])} on Z pos: {z_as}")
-
-        tubes.append(new_tube)
-        t_deltas.append((new_tube[z_as]))
-        tubes_idx.append(z_as)
+        aca_norm = compare_aca_original(matrices, tubes, t_deltas, tensor)
+        aca_matrix_norms.append(aca_norm)
 
         rank += 1
-    return matrices, tubes, m_deltas, t_deltas
 
-
-# Berekent ACA decompositie van een tensor, zonder de volledige afstandstensor te moeten opstellen
-# Tensor zit in een bepaalde file, functie "getDTW..." om de dtw van bepaalde row/col te berekenen
-# Eigenlijk onzin want bij gebruik kleinere tensor gebruik van bepaalde skeletten/time series
-# ==> Eerste implementatie met gebruik tensor.
-# optie voor random seed en begin kolom
-# MET CHECK VOOR DUBBELE FIBERS
-def aca_tensor(tensor, max_rank, start_col=None, random_seed=None):
-    print("shape", tensor.shape)
-
-    rows = []
-    cols = []
-    tubes = []
-    r_deltas = []
-    c_deltas = []
-    t_deltas = []
-
-    x_used = []
-    y_used = []
-    z_used = []
-
-    # Def shape of tensor
-    shape = tensor.shape  # shape = (z, y, x)
-
-    # If a random seed is given, use this.
-    if random_seed is not None:
-        random.seed(random_seed)
-
-    # If no start column is given, initialize a random one.
-    if start_col is None:
-        x_as = random.randint(0, shape[2]-1)
-        z_as = random.randint(0, shape[0]-1)
-        print(f"chosen col: x={x_as}, z={z_as}")
-
+    if to_cluster:
+        return matrices, tubes, m_deltas, t_deltas
     else:
-        x_as = start_col[0]
-        z_as = start_col[1]
-
-    x_used.append(x_as)
-    z_used.append(z_as)
-
-    rank = 0
-    # Select new skeletons until desired rank is reached.
-    while rank < max_rank:
-
-        print(f"--------------------- RANK {rank} ----------------------")
-        # print(tensor[z_as])
-
-        # --------- COLUMNS ---------
-        col_fiber = tensor[z_as, :, x_as]
-        print("col before", col_fiber)
-
-        approx = np.zeros(len(col_fiber))
-        for i in range(rank):
-            approx = np.add(approx, cols[i] * rows[i][x_as] * tubes[i][z_as] * (1.0 / r_deltas[i]) * (1.0 / t_deltas[i]))
-        new_col = np.subtract(col_fiber, approx)
-        print("col after", new_col)
-
-        new_abs_col = abs(new_col)
-        previous = [i for i, item in enumerate(z_used[0:len(z_used)-1]) if item == z_as]
-        # print("previous y", y_used)
-        to_delete = [y_used[p] for p in previous]
-        # print("y to delete", to_delete)
-        col_without_previous = np.delete(new_abs_col, to_delete, axis=0)
-        max_val = np.max(col_without_previous)
-
-        y_as = np.where(abs(new_col) == max_val)[0][0]
-        print(f"max val: {new_col[y_as]} on Y pos: {y_as}")
-        cols.append(new_col)
-        c_deltas.append(new_col[y_as])
-        y_used.append(y_as)
-
-        # --------- ROWS ---------
-        row_fiber = tensor[z_as, y_as, :]
-        print("r before", row_fiber)
-
-        approx = np.zeros(len(row_fiber))
-        for i in range(rank):
-            approx = np.add(approx, cols[i][y_as] * rows[i] * tubes[i][z_as] * (1.0 / c_deltas[i]) * (1.0 / t_deltas[i]))
-        new_row = np.subtract(row_fiber, approx)
-        print("r after", new_row)
-
-        new_abs_row = abs(new_row)
-        previous = [i for i, item in enumerate(y_used[0:len(y_used)-1]) if item == y_as]
-        # print("prevous x", x_used)
-        to_delete = [x_used[p+1] for p in previous]
-        # print("x to delete", to_delete)
-        row_without_previous = np.delete(new_abs_row, to_delete, axis=0)
-        max_val = np.max(row_without_previous)
-
-        x_as = np.where(abs(new_row) == max_val)[0][0]
-        print(f"max val: {new_row[x_as]} on X pos: {x_as}")
-        rows.append(new_row)
-        r_deltas.append(new_row[x_as])
-        x_used.append(x_as)
-
-        # --------- TUBES ---------
-        tube_fiber = tensor[:, y_as, x_as]
-        print("t:", tube_fiber)
-
-        approx = np.zeros(len(tube_fiber))
-        for i in range(rank):
-            approx = np.add(approx, cols[i][y_as] * rows[i][x_as] * tubes[i] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
-        new_tube = np.subtract(tube_fiber, approx)
-
-        print("t after:", new_tube)
-
-        new_abs_tube = abs(new_tube)
-        previous = [i for i, item in enumerate(x_used[0:len(x_used)-1]) if item == x_as]
-        # print("previous z", z_used)
-        to_delete = [z_used[p] for p in previous]
-        # print("z to delete", to_delete)
-        tube_without_previous = np.delete(new_abs_tube, to_delete, axis=0)
-        max_val = np.max(tube_without_previous)
-
-        z_as = np.where(new_abs_tube == max_val)[0][0]
-        print(f"max val: {new_tube[z_as]} on Z pos: {z_as}")
-
-        tubes.append(new_tube)
-        t_deltas.append(new_tube[z_as])
-        z_used.append(z_as)
-
-        rank += 1
-    return cols, rows, tubes, c_deltas, r_deltas, t_deltas
+        return aca_matrix_norms
 
 
-def compare_aca_original(matrices, tubes, tube_delta, original):
+def compare_aca_original(matrices, tubes, t_delta, original):
     t = np.zeros(original.shape)
     # Make whole tensor as sum of product of matrices and tube vectors
+    # print("ts", tubes)
     for i in range(len(matrices)):
         matrix = matrices[i]
-        tube = np.divide(tubes[i], tube_delta[i])
+        # print("m", matrix)
+        tube = np.divide(tubes[i], t_delta[i])
         t += np.einsum('i,jk->ijk', tube, matrix)
-
+    print(t)
     # Fill diagonal of each frontal matrix in tensor with zeros
     for i in range(len(t)):
         np.fill_diagonal(t[i], 0)
-    # print("einsum \n", t)
 
     # Compare with original tensor
     difference = original-t
-    norm = np.linalg.norm(difference)
-
+    # print("differ \n", difference)
+    f_norm = np.linalg.norm(difference)
+    original_norm = np.linalg.norm(original)
+    norm = f_norm/original_norm
     return norm
 
 
-def compare_aca_k_original(cols, rows, tubes, row_delta, tube_delta, original):
-    t = np.zeros(original.shape)
-    # Make whole tensor as sum of skeletons
-    for i in range(len(cols)):
-        col = cols[i]
-        row = np.divide(rows[i], row_delta[i])
-        # print(row)
-        # col = np.divide(cols[i], col_delta[i])
-        tube = np.divide(tubes[i], tube_delta[i])
-        matrix = np.dot(col.T, row)
-        t += np.einsum('i,jk->ijk', tube, matrix)
-
-    # Fill diagonal of each frontal matrix in tensor with zeros
-    for i in range(len(t)):
-        np.fill_diagonal(t[i], 0)
-    # print("einsum \n", t)
-
-    # Compare with original tensor
-    difference = original-t
-    norm = np.linalg.norm(difference)
-
-    return norm
-
-
-def aca_as_cp(cols, rows, tubes, row_delta, tube_delta):
+def aca_as_cp(cols, rows, tubes, col_delta, row_delta):
     """
     Converts the result of ACA to the CP-format to easily reconstruct the full tensor.
     :param cols: the column vectors from ACA
     :param rows: the rows vectors from ACA
     :param tubes: the tubes vectors from ACA
+    :param col_delta: the deltas from ACA, used to calculate weights
     :param row_delta: the deltas from ACA, used to calculate weights
-    :param tube_delta: the deltas from ACA, used to calculate weights
     :return: returns (weights, factors) based on ACA result
     """
     f_cs = np.array(np.transpose(cols))
     f_rs = np.array(np.transpose(rows))
     f_ts = np.array(np.transpose(tubes))
-    combined_fs = [f_ts, f_rs, f_cs]
+    combined_fs = [f_ts, f_cs, f_rs]
     weights = np.ones(len(row_delta))
     for w in range(len(weights)):
-        weights[w] = (1/row_delta[w]) * (1/tube_delta[w])
+        # print("col_D", col_delta[w], "row_D", row_delta[w])
+        weights[w] = (1/col_delta[w]) * (1/row_delta[w])
     return weights, combined_fs
 
 
-def compare_cp_with_full(cp, original):
+def reconstruct_tensor(cp, symm=True):
     reconstructed = tl.cp_tensor.cp_to_tensor(cp)
 
     # Make all elements on diagonal 0.
     for i in range(len(reconstructed)):
         np.fill_diagonal(reconstructed[i], 0)
+        if symm:
+            rit = reconstructed[i].T
+            reconstructed[i] = reconstructed[i]+rit
+    return reconstructed
 
-    difference = original-reconstructed
+
+def compare_cp_with_full(cp, original):
+    reconstructed = np.abs(reconstruct_tensor(cp, symm=False))
+    difference = np.subtract(original, reconstructed)
     # Calculate tensor norm (~Frobenius matrix norm)
-    norm = np.linalg.norm(difference)
+    # f_norm2 = calc_norm(difference)
+    f_norm = np.linalg.norm(difference)
+    original_norm = np.linalg.norm(original)
+    print("original norm = ", original_norm)
+    print("fnorm =", f_norm)
+    # original_norm2 = calc_norm(original)
+    norm = f_norm/original_norm
+    # norm2 = f_norm2/original_norm2
     return norm
 
 
-def one_rank(path, rank):
-    big_t = np.load(path)
-    # ms, ts, md, td = aca_matrix_x_vector(big_t, max_rank=rank, start_matrix=None, random_seed=2)
-    # aca_norm = compare_aca_original(ms, ts, td, big_t)
-
-    cs, rs, ts, cd, rd, td = aca_k_vectors(big_t, max_rank=rank, k_hat=3, random_seed=2)
-    aca_norm = compare_aca_k_original(cs, rs, ts, rd, td, big_t)
-    # factors_aca = aca_as_cp(cs, rs, ts, rd, td)
-    # aca_norm = compare_cp_with_full(cp=factors_aca, original=big_t)
-
-    factors_cp = parafac(big_t, rank=rank, normalize_factors=False)
-    cp_norm = compare_cp_with_full(cp=factors_cp, original=big_t)
-
-    print("diff A & ACA", aca_norm)
-    # print("T", big_t)
-    print("diff A & CP", cp_norm)
-    # print("rec", reconstructed_tensor)
+def calc_norm(tensor):
+    s = 0
+    shape = tensor.shape
+    for k in range(shape[0]):
+        for j in range(shape[1]):
+            for i in range(shape[2]):
+                s += (tensor[k, j, i] * tensor[k, j, i])
+    res = np.sqrt(s)
+    return res
 
 
-def more_ranks(path, ranks, plot=True):
-    big_t = np.load(path)
-    seed = 1
-    aca_vects_norms = []
-    aca_k_hat_norms = []
-    aca_matrix_norms = []
-    cp_norms = []
+def generate_tube_samples(tensor):
+    zs, ys, xs = tensor.shape
+    sample_indices = np.zeros(shape=(zs, 3), dtype=int)
+    sample_values = np.zeros(zs, dtype=float)
 
-    # for loop is sub-optimaal voor dit! altijd zelfde herberekenen => beter = telkens 1 verdere stap i/d while loop
-    # van de main aca loop!!
-    for rank in ranks:
+    # Cycle over all horizontal slices, then take random element of that slice
+    for z in range(zs):
+        x = random.randint(0, xs-1)
+        y = random.randint(0, ys-1)
+        while x == y:
+            y = random.randint(0, ys - 1)
 
-        cs, rs, ts, cd, rd, td = aca_tensor(big_t, max_rank=rank, start_col=None, random_seed=seed)
-        factors_aca = aca_as_cp(cs, rs, ts, rd, td)
-        aca_norm = compare_cp_with_full(cp=factors_aca, original=big_t)
-        aca_vects_norms.append(aca_norm)
+        sample_indices[z, 0] = z
+        sample_indices[z, 1] = y
+        sample_indices[z, 2] = x
+        sample_values[z] = get_element(x, y, z, tensor)
 
-        # cs, rs, ts, cd, rd, td = aca_k_vectors(big_t, max_rank=rank, k_hat=3, start_col=None, random_seed=seed)
-        # aca_norm = compare_aca_k_original(cs, rs, ts, rd, td, big_t)
-        # aca_k_hat_norms.append(aca_norm)
-        aca_k_hat_norms.append(0)
-
-        ms, ts, md, td = aca_matrix_x_vector(big_t, max_rank=rank, start_matrix=None, random_seed=seed)
-        aca_norm = compare_aca_original(ms, ts, td, big_t)
-        aca_matrix_norms.append(aca_norm)
-
-        factors_cp = parafac(big_t, rank=rank, normalize_factors=False)
-        cp_norm = compare_cp_with_full(cp=factors_cp, original=big_t)
-        cp_norms.append(cp_norm)
-
-        print("diff A & ACA", aca_norm)
-        # print("T", big_t)
-        print("diff A & CP", cp_norm)
-        # print("rec", reconstructed_tensor)
-
-    # PLOTTING
-    if plot:
-        print("ACA Matrix:", aca_matrix_norms)
-        print("ACA k_hat:", aca_k_hat_norms)
-        print("ACA vectors: ", aca_vects_norms)
-        print("CP:", cp_norms)
-        plotting.plot_norms_aca_cp(aca_matrix_norms, aca_k_hat_norms, aca_vects_norms, cp_norms, ranks)
-        k_hat = len(cs[0])
-        plotting.plot_amount_calcs(big_t, k_hat, ranks)
-
-def main():
-    path = "tensors/person2-3-5_all_ex_50ts.npy"
-
-    # To calculate the rank of one tensor, given the path to the tensor.
-    # one_rank(path, 3)
-
-    # ranks given as a range, will do ACA and CP for all the elements in range.
-    ranks = range(1, 50)
-    more_ranks(path, ranks, plot=True)
+    return sample_indices, sample_values
 
 
-if __name__ == "__main__":
-    main()
+def generate_samples(tensor, amount):
+    shape = tensor.shape
+    sample_indices = np.zeros(shape=(amount, 3), dtype=int)
+    sample_values = np.zeros(amount, dtype=float)
+
+    for a in range(amount):
+        i = random.randint(0, shape[1]-1)
+        j = random.randint(0, shape[2]-1)
+        while i == j:
+            j = random.randint(0, shape[2]-1)
+        k = random.randint(0, shape[0]-1)
+        sample_indices[a, 0] = k
+        sample_indices[a, 1] = j
+        sample_indices[a, 2] = i
+        sample_values[a] = get_element(i, j, k, tensor)
+
+    return sample_indices, sample_values
 
 
-# STARTED W/ CLUSTERING
-# labels = clustering.cluster_three_dims(rs, cs, ts)
-# print(labels)
+def get_element(i, j, k, tensor):
+    return tensor[k, j, i]
 
-# Visualizing the clustering
-# plt.scatter(X_principal['P1'], X_principal['P2'],
-#            c = SpectralClustering(n_clusters = 2, affinity ='rbf') .fit_predict(X_principal), cmap=plt.cm.winter)
-# plt.show()
+
+def get_fiber(tensor, i=None, j=None, k=None):
+    fiber = []
+
+    if i is None:
+        fiber = tensor[k, j, :]
+    elif j is None:
+        fiber = tensor[k, :, i]
+    elif k is None:
+        fiber = tensor[:, j, i]
+
+    return fiber

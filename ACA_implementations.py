@@ -29,7 +29,6 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
     if random_seed is not None:
         random.seed(random_seed)
 
-    # Generate random samples for stopping criteria
     # amount = 2
     # sample_indices = np.zeros(shape=(amount, 3), dtype=int)
     # sample_values = np.zeros(amount, dtype=float)
@@ -44,6 +43,7 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
     # sample_indices[a, 2] = 0
     # sample_values[a] = get_element(0, 1, 0, tensor)
 
+    # Generate random samples for stopping criteria
     sample_indices, sample_values = generate_samples(tensor, max_rank)
     print(f"Sample indices: {sample_indices} \n with sample values {sample_values}")
     sample_size = len(sample_values)
@@ -168,6 +168,7 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         factors_aca = aca_as_cp(cols, rows, tubes, c_deltas, r_deltas)
         reconstructed = reconstruct_tensor(factors_aca, symm=True)
         print(reconstructed)
+        print("diff\n", tensor-reconstructed)
         aca_norm = compare_cp_with_full(cp=factors_aca, original=tensor)
         aca_vects_norms.append(aca_norm)
 
@@ -374,11 +375,17 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
     if random_seed is not None:
         random.seed(random_seed)
 
-    # Generate samples
+    # Generate samples for stopping criteria and better start
+    sample_indices, sample_values = generate_tube_samples(tensor)
+    print(f"Sample indices: {sample_indices} \n with sample values {sample_values}")
+    sample_size = len(sample_values)
 
     # If no start column is given, initialize a random one.
     if start_matrix is None:
-        z_as = random.randint(0, shape[0]-1)
+        max_sample = np.max(np.abs(sample_values))
+        index_sample_max = np.where(np.abs(sample_values) == max_sample)[0][0]
+
+        z_as = sample_indices[index_sample_max, 0]
         print(f"chosen matrix: z={z_as}")
 
     else:
@@ -394,7 +401,7 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
 
         # --------- MATRICES ---------
         matrix = tensor[z_as, :, :]
-        # print("matrix before", matrix)
+        print("matrix before", z_as, "; ", matrix)
 
         approx = np.zeros(matrix.shape)
         for i in range(rank):
@@ -423,7 +430,7 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
         y_as = m_idx[0]
         x_as = m_idx[1]
         tube_fiber = tensor[:, y_as, x_as]
-        print("t:", tube_fiber)
+        print("t:", m_idx, "; ", tube_fiber)
 
         approx = np.zeros(len(tube_fiber))
         for i in range(rank):
@@ -462,15 +469,20 @@ def compare_aca_original(matrices, tubes, m_delta, original):
         tube = tubes[i]
         # print("t", tube)
         t += np.einsum('i,jk->ijk', tube, matrix)
-
+    print(t)
     # Fill diagonal of each frontal matrix in tensor with zeros
     for i in range(len(t)):
         np.fill_diagonal(t[i], 0)
 
     # Compare with original tensor
     difference = original-t
+    print("DIFFERENCE \n", difference)
     f_norm = np.linalg.norm(difference)
     original_norm = np.linalg.norm(original)
+    original_norm2 = calc_norm(difference)
+    print("check =", original_norm2)
+    print("original norm = ", original_norm)
+    print("fnorm =", f_norm)
     norm = f_norm/original_norm
     return norm
 
@@ -509,15 +521,17 @@ def reconstruct_tensor(cp, symm=True):
 
 
 def compare_cp_with_full(cp, original):
-    reconstructed = np.abs(reconstruct_tensor(cp, symm=False))
+    reconstructed = np.abs(reconstruct_tensor(cp, symm=True))
     difference = np.subtract(original, reconstructed)
+
     # Calculate tensor norm (~Frobenius matrix norm)
     # f_norm2 = calc_norm(difference)
     f_norm = np.linalg.norm(difference)
     original_norm = np.linalg.norm(original)
-    print("original norm = ", original_norm)
-    print("fnorm =", f_norm)
-    # original_norm2 = calc_norm(original)
+    # print("original norm = ", original_norm)
+    # print("fnorm =", f_norm)
+    original_norm2 = calc_norm(difference)
+    # print("check =", original_norm2)
     norm = f_norm/original_norm
     # norm2 = f_norm2/original_norm2
     return norm
@@ -529,26 +543,28 @@ def calc_norm(tensor):
     for k in range(shape[0]):
         for j in range(shape[1]):
             for i in range(shape[2]):
-                s += (tensor[k, j, i] * tensor[k, j, i])
+                temp = tensor[k, j, i]
+                s += (temp * temp)
     res = np.sqrt(s)
     return res
 
 
 def generate_tube_samples(tensor):
     zs, ys, xs = tensor.shape
-    amount = xs*ys
-    sample_indices = np.zeros(shape=(amount, 3), dtype=int)
-    sample_values = np.zeros(amount, dtype=float)
+    sample_indices = np.zeros(shape=(zs, 3), dtype=int)
+    sample_values = np.zeros(zs, dtype=float)
 
-    # Cycle over all elements in horizontal slice to use every tube, then take random element of that tube
-    for x in range(xs):
-        for y in range(ys):
-            a = x*xs + y
-            z = random.randint(0, zs-1)
-            sample_indices[a, 0] = z
-            sample_indices[a, 1] = y
-            sample_indices[a, 2] = x
-            sample_values[a] = get_element(x, y, z, tensor)
+    # Cycle over all horizontal slices, then take random element of that slice
+    for z in range(zs):
+        x = random.randint(0, xs-1)
+        y = random.randint(0, ys-1)
+        while x == y:
+            y = random.randint(0, ys - 1)
+
+        sample_indices[z, 0] = z
+        sample_indices[z, 1] = y
+        sample_indices[z, 2] = x
+        sample_values[z] = get_element(x, y, z, tensor)
 
     return sample_indices, sample_values
 

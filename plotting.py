@@ -18,7 +18,7 @@ def plot_norms_aca_cp(amount_vects, aca_m=None, aca_k=None, aca_v=None, cp_norms
         num_cols += 1
 
     plt.xlabel("# vectoren")
-    plt.ylabel("|| Tensor - Benadering ||")
+    plt.ylabel("Relatieve fout")
 
     plt.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left", mode="expand", borderaxespad=0, ncol=num_cols)
     plt.show()
