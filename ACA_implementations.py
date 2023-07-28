@@ -71,67 +71,42 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         print(f"--------------------- RANK {rank} ----------------------")
         # print(tensor[z_as])
 
+        # works with symmetric frontal matrices so take the same index row and column!
         # --------- COLUMNS ---------
         col_fiber = get_fiber(tensor, k=z_as, i=x_as)
         print("col before", col_fiber)
 
-        if reconstructed is None:
-            approx = np.zeros(len(col_fiber))
-            for i in range(rank):
-                approx = np.add(approx, cols[i] * rows[i][x_as] * tubes[i][z_as] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
-            print("A:", approx)
-        else:
-            approx = get_fiber(reconstructed, k=z_as, i=x_as)
-            print("A:", approx)
+        approx = np.zeros(len(col_fiber))
+        for i in range(rank):
+            approx = np.add(approx, cols[i] * cols[i][x_as] * tubes[i][z_as] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
+        print("A:", approx)
 
         new_col = np.subtract(col_fiber, approx)
         print("col after", new_col)
 
-        previous = [i for i, item in enumerate(z_used[0:len(z_used)-1]) if item == z_as]
-        print("previous y", y_used)
-        to_delete = [y_used[p] for p in previous]
-        print("y to delete", to_delete)
-        col_without_previous = set_to_zero(to_delete, new_col)
-        max_val, y_as = find_largest_absolute_value(col_without_previous)
+        # previous = [i for i, item in enumerate(z_used[0:len(z_used)-1]) if item == z_as]
+        # print("previous y", y_used)
+        # to_delete = [y_used[p] for p in previous]
+        # print("y to delete", to_delete)
+        # col_without_previous = set_to_zero(to_delete, new_col.copy())
+        col_with_zero = set_to_zero([x_as], new_col.copy())
+        print("col w/ 0:", col_with_zero)
+        max_val, y_as = find_largest_absolute_value(col_with_zero)
 
         print(f"max val: {max_val} on Y pos: {y_as}")
         cols.append(new_col)
         c_deltas.append(max_val)
         y_used.append(y_as)
 
-        # --------- ROWS ---------
-        row_fiber = get_fiber(tensor, k=z_as, j=y_as)
-        print("r before", row_fiber)
+        temp_d = new_col[x_as]
+        if temp_d == 0.0:
+            print("WRONG HGTE")
+            temp_d = np.max(abs(new_col))
+        print("tempd:", temp_d)
+        r_deltas.append(temp_d)
 
-        if reconstructed is None:
-            approx = np.zeros(len(row_fiber))
-            for i in range(rank):
-                approx = np.add(approx,
-                                cols[i][y_as] * rows[i] * tubes[i][z_as] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
-            print("A", approx)
-        else:
-            approx = get_fiber(reconstructed, k=z_as, j=y_as)
-            print("A:", approx)
-
-        new_row = np.subtract(row_fiber, approx)
-        print("r after", new_row)
-
-        new_abs_row = abs(new_row)
-        previous = [i for i, item in enumerate(y_used[0:len(y_used)-1]) if item == y_as]
-        # print("prevous x", x_used)
-
-        # Needed when adding first chosen column
-        to_delete = [x_used[p+1] for p in previous]
-
-        # to_delete = [x_used[p] for p in previous]
-        # print("x to delete", to_delete)
-        row_without_previous = set_to_zero(to_delete, new_row)
-        max_val, x_as = find_largest_absolute_value(row_without_previous)
-
-        print(f"max val: {max_val} on X pos: {x_as}")
-        rows.append(new_row)
-        r_deltas.append(max_val)
-        x_used.append(x_as)
+        print("outer", np.outer(new_col, new_col)/temp_d)
+        print("outer zonder", np.outer(new_col, new_col))
 
         # --------- TUBES ---------
         print(x_used)
@@ -139,25 +114,20 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         tube_fiber = get_fiber(tensor, j=y_as, i=x_as)
         print("t:", tube_fiber)
 
-        if reconstructed is None:
-            approx = np.zeros(len(tube_fiber))
-            for i in range(rank):
-                approx = np.add(approx,
-                                cols[i][y_as] * rows[i][x_as] * tubes[i] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
-        else:
-            approx = get_fiber(reconstructed, j=y_as, i=x_as)
-            print("A:", approx)
+        approx = np.zeros(len(tube_fiber))
+        for i in range(rank):
+            approx = np.add(approx, cols[i][y_as] * cols[i][x_as] * tubes[i] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
 
         new_tube = np.subtract(tube_fiber, approx)
         print("t after:", new_tube)
 
-        previous = [i for i, item in enumerate(x_used[0:len(x_used)-1]) if item == x_as]
-        print("previous z", z_used)
-        to_delete = [z_used[p] for p in previous]
-        print("z to delete", to_delete)
-        t = new_tube.copy()
-        tube_without_previous = set_to_zero(to_delete, t)
-        z_max, z_as = find_largest_absolute_value(tube_without_previous)
+        # previous = [i for i, item in enumerate(x_used[0:len(x_used)-1]) if item == x_as]
+        # print("previous z", z_used)
+        # to_delete = [z_used[p] for p in previous]
+        # print("z to delete", to_delete)
+        # t = new_tube.copy()
+        # tube_without_previous = set_to_zero(to_delete, t)
+        z_max, z_as = find_largest_absolute_value(new_tube)
 
         print(f"max val: {z_max} on Z pos: {z_as}")
 
@@ -165,13 +135,16 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         t_deltas.append(z_max)
         z_used.append(z_as)
 
-        factors_aca = aca_as_cp(cols, rows, tubes, c_deltas, r_deltas)
-        reconstructed = reconstruct_tensor(factors_aca, symm=True)
-        print(reconstructed)
+        factors_aca = aca_as_cp(cols, cols, tubes, r_deltas, c_deltas)
+        # print("tester:", np.transpose(np.matmul(np.transpose(cols).copy(), cols)/13))
+        reconstructed = reconstruct_tensor(factors_aca, zeros=False)
+        print("--- reconstr:", reconstructed)
         print("diff\n", tensor-reconstructed)
+        reconstructed = None
         aca_norm = compare_cp_with_full(cp=factors_aca, original=tensor)
         aca_vects_norms.append(aca_norm)
 
+        x_as = y_as
         rank += 1
 
     if to_cluster:
@@ -508,20 +481,22 @@ def aca_as_cp(cols, rows, tubes, col_delta, row_delta):
     return weights, combined_fs
 
 
-def reconstruct_tensor(cp, symm=True):
+def reconstruct_tensor(cp, zeros=True):
     reconstructed = tl.cp_tensor.cp_to_tensor(cp)
 
     # Make all elements on diagonal 0.
-    for i in range(len(reconstructed)):
-        np.fill_diagonal(reconstructed[i], 0)
-        if symm:
-            rit = reconstructed[i].T
-            reconstructed[i] = reconstructed[i]+rit
+    if zeros:
+        for i in range(len(reconstructed)):
+            np.fill_diagonal(reconstructed[i], 0)
+
+    # Round all elements in tensor for better overview
+    # for i in range(len(reconstructed)):
+    #     reconstructed[i] = np.matrix.round(reconstructed[i], decimals=2)
     return reconstructed
 
 
 def compare_cp_with_full(cp, original):
-    reconstructed = np.abs(reconstruct_tensor(cp, symm=True))
+    reconstructed = np.abs(reconstruct_tensor(cp, zeros=True))
     difference = np.subtract(original, reconstructed)
 
     # Calculate tensor norm (~Frobenius matrix norm)

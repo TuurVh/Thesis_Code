@@ -166,8 +166,10 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         z_used.append(z_as)
 
         factors_aca = aca_as_cp(cols, rows, tubes, c_deltas, r_deltas)
-        reconstructed = reconstruct_tensor(factors_aca, symm=True)
-        print(reconstructed)
+        reconstructed = reconstruct_tensor(factors_aca, symm=False)
+        # print("tester:", np.transpose(np.matmul(np.transpose(rows).copy(), cols)/13))
+
+        print("-- reconstr:  ", reconstructed)
         aca_norm = compare_cp_with_full(cp=factors_aca, original=tensor)
         aca_vects_norms.append(aca_norm)
 
