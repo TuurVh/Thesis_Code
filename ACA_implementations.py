@@ -136,11 +136,16 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         z_used.append(z_as)
 
         # ----- REEVALUATE SAMPLES -----
+        print("REEVALUATE SAMPLES", sample_values[0])
+        print(sample_indices[0])
         for s in range(sample_size):
             x_ = sample_indices[s, 1]
             y_ = sample_indices[s, 2]
             z_ = sample_indices[s, 0]
-
+            temp_sample = sample_values[s]
+            sample_values[s] = temp_sample - (cols[rank][x_] * cols[rank][y_] * tubes[rank][z_] *
+                                              (1.0/c_deltas[rank]) * (1.0 / r_deltas[rank]))
+        print(sample_values[0])
         # --------- RECONSTRUCTION ---------
         factors_aca = aca_as_cp(cols, cols, tubes, r_deltas, c_deltas)
         # print("tester:", np.transpose(np.matmul(np.transpose(cols).copy(), cols)/13))
@@ -380,9 +385,11 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
         # print(tensor[z_as])
 
         # --------- MATRICES ---------
+        # Calculate matrix from tensor
         matrix = tensor[z_as, :, :]
         print("matrix before", z_as, "; ", matrix)
 
+        # Use current approximation to find residual (new_matrix)
         approx = np.zeros(matrix.shape)
         for i in range(rank-1):
             approx = np.add(approx, matrices[i] * tubes[i][z_as] * (1.0 / m_deltas[i]))
@@ -398,10 +405,12 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
             new_abs_matrix[i][j] = 0
             new_abs_matrix[j][i] = 0
 
+        # Find max absolute value in the matrix, to use as delta
         m_idx = np.unravel_index(np.argmax(new_abs_matrix), new_matrix.shape)
         max_val = new_matrix[m_idx]
         print(f"max val: {max_val} on Y pos: {m_idx}")
 
+        # Store matrices, deltas and used index values
         matrices.append(new_matrix)
         m_deltas.append(max_val)
         matrix_idx.append(m_idx)
