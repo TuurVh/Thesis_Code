@@ -30,7 +30,7 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
     aca_matrix_norms = None
     cp_norms = None
     # ACA that builds tensor from sum of vectors
-    aca_vects_norms = aca_tensor(big_t, max_rank, start_col=None, random_seed=random_seed)
+    # aca_vects_norms = aca_tensor(big_t, max_rank, start_col=None, random_seed=random_seed)
 
     k_hat = 4
     # aca_k_hat_norms = aca_k_vectors(big_t, max_rank, k_hat=k_hat, start_tube=None, random_seed=random_seed)
@@ -39,7 +39,7 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
     # aca_matrix_norms = matrix2(big_t, max_rank, start_col=None, random_seed=random_seed)
 
     # Matrix-Tube implementation
-    # aca_matrix_norms = aca_matrix_x_vector(big_t, max_rank, start_matrix=None, random_seed=random_seed)
+    aca_matrix_norms = aca_matrix_x_vector(big_t, max_rank, start_matrix=None, random_seed=random_seed)
 
     # cp_norms = []
     # for rank in range(1, max_rank+1):
@@ -58,9 +58,9 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
 
 def main():
     path = "tensors/person2all_ex_75ts.npy"
-    # big_t = np.load(path)
+    big_t = np.load(path)
 
-    big_t = random_tensor((4, 4, 4), 1, 20, seed=3)
+    # big_t = random_tensor((4, 4, 4), 1, 20, seed=3)
     print(big_t)
 
     print(f"Tensor is symmetric? -> {tensor_symmetric_test(big_t)}")

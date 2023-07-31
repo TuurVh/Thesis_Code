@@ -105,8 +105,8 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         print("tempd:", temp_d)
         r_deltas.append(temp_d)
 
-        print("outer", np.outer(new_col, new_col)/temp_d)
-        print("outer zonder", np.outer(new_col, new_col))
+        # print("outer", np.outer(new_col, new_col)/temp_d)
+        # print("outer zonder", np.outer(new_col, new_col))
 
         # --------- TUBES ---------
         print(x_used)
@@ -135,6 +135,13 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         t_deltas.append(z_max)
         z_used.append(z_as)
 
+        # ----- REEVALUATE SAMPLES -----
+        for s in range(sample_size):
+            x_ = sample_indices[s, 1]
+            y_ = sample_indices[s, 2]
+            z_ = sample_indices[s, 0]
+
+        # --------- RECONSTRUCTION ---------
         factors_aca = aca_as_cp(cols, cols, tubes, r_deltas, c_deltas)
         # print("tester:", np.transpose(np.matmul(np.transpose(cols).copy(), cols)/13))
         reconstructed = reconstruct_tensor(factors_aca, zeros=False)
@@ -365,9 +372,9 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
         z_as = start_matrix
     tubes_idx.append(z_as)
 
-    rank = 0
+    rank = 1
     # Select new skeletons until desired rank is reached.
-    while rank < max_rank:
+    while rank-1 < max_rank:
 
         print(f"--------------------- RANK {rank} ----------------------")
         # print(tensor[z_as])
@@ -377,7 +384,7 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
         print("matrix before", z_as, "; ", matrix)
 
         approx = np.zeros(matrix.shape)
-        for i in range(rank):
+        for i in range(rank-1):
             approx = np.add(approx, matrices[i] * tubes[i][z_as] * (1.0 / m_deltas[i]))
             # print("approx: \n", approx)
         new_matrix = np.subtract(matrix, approx)
@@ -406,7 +413,7 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
         print("t:", m_idx, "; ", tube_fiber)
 
         approx = np.zeros(len(tube_fiber))
-        for i in range(rank):
+        for i in range(rank-1):
             approx = np.add(approx, matrices[i][m_idx] * tubes[i] * (1.0 / m_deltas[i]))
         new_tube = np.subtract(tube_fiber, approx)
 
