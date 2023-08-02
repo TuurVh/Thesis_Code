@@ -17,46 +17,34 @@ def random_tensor(shape, low, high, seed):
     return tensor
 
 
+def get_dist_matrix(tensor, aca_matrix=False, aca_vects=False, aca_k_hat=False):
+    if aca_matrix:
+        mats, m_ds = aca_matrix_x_vector(tensor, 10, to_cluster=True)
+        m_tot = np.zeros(shape=mats[0].shape)
+        for i in range(len(mats)):
+            mat = np.divide(mats[i], m_ds[i])
+            m_tot += mat
+        return m_tot
+
+    if aca_vects:
+        cs, rs, ts, c_ds, r_ds, t_ds = aca_tensor(tensor, 16, random_seed=None, to_cluster=True)
+        shape = tensor.shape
+        m_tot = np.zeros(shape=(shape[2], shape[1]))
+        for i in range(len(cs)):
+            new_row = np.divide(rs[i], r_ds[i])
+            matrix = np.outer(cs[i], new_row)
+            m_tot += matrix
+        return m_tot
+
+
 def main():
-    path = "tensors/person3-5-10_all_ex_50ts.npy"
+    path = "tensors/person2&3-all_ex_75ts.npy"
     big_t = np.load(path)
-    shape = big_t.shape
 
     # big_t = random_tensor((5, 4, 4), 1, 6, seed=1)
     # print(big_t)
 
-    # Dimensie van personen
-    # cs, rs, ts, c_ds, r_ds, t_ds = aca_tensor(big_t, 32, random_seed=None, to_cluster=True)
-    # print(len(cs))
-
-    # row = np.divide(rs[0], r_ds[0])
-    # dist = np.outer(cs[0], row)
-    # print("D", dist.shape)
-    #
-    # cols = np.vstack(cs)
-    # temp = [np.divide(row, rd) for row, rd in zip(rs, r_ds)]
-    # rows = (np.vstack(temp))
-    #
-    # d_matrix = np.dot(cols.T, rows)
-
-    # Dimensie van sensoren
-    cs, rs, ts, c_ds, r_ds, t_ds = aca_tensor(big_t, 16, random_seed=None, to_cluster=True)
-    m_tot = np.zeros(shape=(shape[2], shape[1]))
-    for i in range(len(cs)):
-        new_row = np.divide(rs[i], r_ds[i])
-        matrix = np.outer(cs[i], new_row)
-        m_tot += matrix
-
-    d_matrix = m_tot
-
-    # # Get the maximum dimension
-    # max_dim = max(d_matrix.shape)
-    #
-    # # Create a square matrix of zeros with the maximum dimension
-    # square_matrix = np.zeros((max_dim, max_dim))
-    #
-    # # Insert the elements from the original matrix into the square matrix
-    # square_matrix[:d_matrix.shape[0], :d_matrix.shape[1]] = d_matrix
+    d_matrix = get_dist_matrix(big_t, aca_matrix=True)
     amount_clusters = 3
     res_spectral = clustering.spectral(d_matrix, amount_clusters)
     print(f"Result for spectral clustering with {amount_clusters} clusters: \n {res_spectral}")
@@ -67,7 +55,7 @@ def main():
         print(f"Cluster {i}: {c}")
     print(f"with medoids: {medoids}")
 
-    ground_truth = ([0]*6 + [1]*6 + [2]*6)*3
+    ground_truth = ([0]*6 + [1]*6 + [2]*6)*2
     ari = clustering.get_ARI_spectral(d_matrix, amount_clusters, ground_truth)
     print("ARI spectral =", ari)
 
