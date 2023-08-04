@@ -337,6 +337,72 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
             m_tot += matrix
             print("matrix", matrix.shape)
 
+        # from vector method:
+        # works with symmetric frontal matrices so take the same index row and column!
+        # --------- COLUMNS ---------
+        col_fiber = get_fiber(tensor, k=z_as, i=x_as)
+        print("col before", col_fiber)
+
+        approx = np.zeros(len(col_fiber))
+        for i in range(rank):
+            approx = np.add(approx, cols[i] * cols[i][x_as] * tubes[i][z_as] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
+        print("A:", approx)
+
+        new_col = np.subtract(col_fiber, approx)
+        print("col after", new_col)
+
+        # previous = [i for i, item in enumerate(z_used[0:len(z_used)-1]) if item == z_as]
+        # print("previous y", y_used)
+        # to_delete = [y_used[p] for p in previous]
+        # print("y to delete", to_delete)
+        # col_without_previous = set_to_zero(to_delete, new_col.copy())
+
+        col_with_zero = set_to_zero([x_as], new_col.copy())
+        print("col w/ 0:", col_with_zero)
+        max_val, y_as = find_largest_absolute_value(col_with_zero)
+
+        print(f"max val: {max_val} on Y pos: {y_as}")
+        cols.append(new_col)
+        c_deltas.append(max_val)
+        x_used.append(x_as)
+
+        temp_d = new_col[x_as]
+        if temp_d == 0.0:
+            print("delta == 0")
+            temp_d = np.max(abs(new_col))
+        print("tempd:", temp_d)
+        r_deltas.append(temp_d)
+
+        # print("outer", np.outer(new_col, new_col)/temp_d)
+        # print("outer zonder", np.outer(new_col, new_col))
+        # used_tubes.append((x_as, y_as))
+
+        # --------- TUBES ---------
+        print("takes:", y_as, ", ", x_as)
+        tube_fiber = get_fiber(tensor, j=y_as, i=x_as)
+        print("t:", tube_fiber)
+
+        approx = np.zeros(len(tube_fiber))
+        for i in range(rank):
+            approx = np.add(approx, cols[i][y_as] * cols[i][x_as] * tubes[i] * (1.0 / c_deltas[i]) * (1.0 / r_deltas[i]))
+
+        new_tube = np.subtract(tube_fiber, approx)
+        print("t after:", new_tube)
+
+        previous = [i for i, item in enumerate(x_used[0:len(x_used)-1]) if item == x_as]
+        print("previous z", z_used)
+        to_delete = [z_used[p] for p in previous]
+        print("z to delete", to_delete)
+        t = new_tube.copy()
+        tube_without_previous = set_to_zero(to_delete, t)
+        z_max, z_as = find_largest_absolute_value(tube_without_previous)
+
+        print(f"max val: {z_max} on Z pos: {z_as}")
+
+        tubes.append(new_tube)
+        t_deltas.append(z_max)
+        z_used.append(z_as)
+
         matrices.append(m_tot)
         m_idx = np.unravel_index(np.argmax(abs(m_tot)), m_tot.shape)
         max_val = m_tot[m_idx]
