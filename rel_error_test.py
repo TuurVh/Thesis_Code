@@ -36,13 +36,13 @@ def get_rel_error(tensor, max_rank, rds, method=''):
 
 
 def main():
-    path = "tensors/person2&3-all_ex_75ts.npy"
+    path = "tensors/person2-3-5_all_ex_50ts.npy"
     big_t = np.load(path)
     shape = big_t.shape
 
     # big_t = random_tensor((5, 4, 4), 1, 6, seed=1)
     # print(big_t)
-    max_rang = 30
+    max_rang = 40
     amount_iters = 10
     method = "matrix"
     all_errs = []
@@ -55,7 +55,8 @@ def main():
             error = get_rel_error(big_t, method=method, max_rank=r, rds=seed)
             error_for_rank.append(error)
         all_errs.append(error_for_rank)
-    plotting.plot_aris(all_errs)
+    print("errs", all_errs)
+    plotting.plot_rel_errs(all_errs)
 
 
 if __name__ == "__main__":

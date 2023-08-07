@@ -38,13 +38,13 @@ def get_dist_matrix(tensor, max_rank, rds, method=''):
 
 
 def main():
-    path = "tensors/person2&3-all_ex_75ts.npy"
+    path = "tensors/person2-3-5_all_ex_50ts.npy"
     big_t = np.load(path)
     shape = big_t.shape
 
     # big_t = random_tensor((5, 4, 4), 1, 6, seed=1)
     # print(big_t)
-    max_rang = 30
+    max_rang = 40
     amount_iters = 10
     method = "matrix"
     all_spect = []
@@ -67,7 +67,7 @@ def main():
             #     print(f"Cluster {i}: {c}")
             # print(f"with medoids: {medoids}")
 
-            ground_truth = ([0]*6 + [1]*6 + [2]*6)*2
+            ground_truth = ([0]*6 + [1]*6 + [2]*6)*3
             ari_s = clustering.get_ARI_spectral(d_matrix, amount_clusters, ground_truth)
             print("ARI spectral =", ari_s)
             aris_spect.append(ari_s)
@@ -78,7 +78,7 @@ def main():
         all_spect.append(aris_spect)
         all_medoid.append(aris_medoid)
     print("res,", all_spect)
-    plotting.plot_aris(all_spect)
+    plotting.plot_aris(all_spect, all_medoid)
 
 
 if __name__ == "__main__":
