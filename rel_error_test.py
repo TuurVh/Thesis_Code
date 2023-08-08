@@ -25,18 +25,13 @@ def get_rel_error(tensor, max_rank, rds, method=''):
         return err
 
     if method == "method2" or method == "vectors":
-        cs, rs, ts, c_ds, r_ds, t_ds = aca_tensor(tensor, 16, random_seed=None, to_cluster=True)
-        shape = tensor.shape
-        m_tot = np.zeros(shape=(shape[2], shape[1]))
-        for i in range(len(cs)):
-            new_row = np.divide(rs[i], r_ds[i])
-            matrix = np.outer(cs[i], new_row)
-            m_tot += matrix
-        return m_tot
+        errs = aca_tensor(tensor, max_rank, random_seed=rds)
+        err = errs[max_rank-1]
+        return err
 
 
 def main():
-    path = "tensors/person2-3-5_all_ex_50ts.npy"
+    path = "tensors/person2&3-all_ex_75ts.npy"
     big_t = np.load(path)
     shape = big_t.shape
 
@@ -44,7 +39,7 @@ def main():
     # print(big_t)
     max_rang = 40
     amount_iters = 10
-    method = "matrix"
+    method = "vectors"
     all_errs = []
 
     for r in range(5, max_rang+1, 5):

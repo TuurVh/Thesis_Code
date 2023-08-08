@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 def plot_norms_aca_cp(amount_vects, aca_m=None, aca_k=None, aca_v=None, cp_norms=None):
     amount_vects = range(1, amount_vects+1)
@@ -24,50 +25,106 @@ def plot_norms_aca_cp(amount_vects, aca_m=None, aca_k=None, aca_v=None, cp_norms
     plt.show()
 
 
-def plot_amount_calcs(tensor, k_hat, rank):
-    print("k_hat", k_hat)
-    # tensor shape = i x i x j
-    shape = tensor.shape
-    print("shape", shape)
-    amount_vectors = rank
-    ranks = range(0, rank)
+def plot_aris(spec_data, medoid_data):
 
-    # aca met vectoren: per iteratie i + i + j
-    aca_v_calculations = shape[0] + shape[1] + shape[2]
-    aca_v = [aca_v_calculations]*amount_vectors
-    aca_v_tot = [(i+1)*aca_v[i] for i in range(len(aca_v))]
+    means_spec = np.mean(spec_data, axis=1)
+    std_devs_spec = np.std(spec_data, axis=1)
 
-    # aca met k_hat vectoren: per iteratie (k_hat * i) + (k_hat * i) + j
-    aca_k_calculations = shape[0] + k_hat*shape[1] + k_hat*shape[2]
-    aca_k = [aca_k_calculations]*amount_vectors
-    aca_k_tot = [(i+1)*aca_k[i] for i in range(len(aca_k))]
+    means_medoid = np.mean(medoid_data, axis=1)
+    std_devs_medoid = np.std(medoid_data, axis=1)
 
-    # aca met matrix * vector: per iteratie (i * i) + j
-    aca_m_calculations = shape[0] + (shape[1] * shape[2])
-    aca_m = [aca_m_calculations]*amount_vectors
-    aca_m_tot = [(i+1)*aca_m[i] for i in range(len(aca_m))]
+    # Set the number of parameter values and runs
+    num_params = len(spec_data)
+    num_runs = len(spec_data[0])
 
-    # CP: heeft volledige tensor nodig: i * i * j
-    cp_calculations = shape[0] * shape[1] * shape[2]
-    cp = [cp_calculations]*amount_vectors
+    # Set the width of the bars and the positions of the groups
+    bar_width = 0.35
+    index = np.arange(num_params)
 
-    print("vs:", aca_v_tot)
-    print("ks:", aca_k_tot)
-    print("ms:", aca_m_tot)
-    print("cp:", cp)
+    # Create the figure and axis
+    fig, ax = plt.subplots()
 
-    plt.plot(ranks, aca_m_tot, label='ACA_matrix')
-    plt.plot(ranks, aca_k_tot, label='ACA_k_hat')
-    plt.plot(ranks, aca_v_tot, label='ACA_vectors')
-    # plt.plot(ranks, cp, label='CP')
+    # Plot the mean values as bars
+    ax.bar(index - bar_width / 2, means_spec, bar_width, label='Spectral Clustering', yerr=std_devs_spec)
+    ax.bar(index + bar_width / 2, means_medoid, bar_width, label='K-Medoids', yerr=std_devs_medoid)
 
-    plt.xlabel("# vectoren")
-    plt.ylabel("# DTW berekeningen")
-    # y-as exponentieel
-    # plt.yscale('symlog')
+    # Set the labels and title
+    ax.set_xlabel('Rank')
+    ax.set_ylabel('ARI-score')
+    ax.set_title('Mean and Deviation of ARI-score for Different Ranks')
+    ax.set_xticks(index)
+    ax.set_xticklabels([f'{(i+1) * 5}' for i in range(num_params)])
 
-    plt.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left", mode="expand", borderaxespad=0, ncol=4)
+    # Show the legend
+    ax.legend()
+
+    # Display the plot
+    plt.tight_layout()
     plt.show()
 
 
+def plot_rel_errs(data):
+
+    means = np.mean(data, axis=1)
+    std_devs = np.std(data, axis=1)
+    # Set the number of parameter values and runs
+    num_params = len(data)
+    num_runs = len(data[0])
+
+    # Set the width of the bars and the positions of the groups
+    bar_width = 0.35
+    index = np.arange(num_params)
+
+    # Create the figure and axis
+    fig, ax = plt.subplots()
+
+    # Plot the mean values as bars
+    ax.bar(index, means, bar_width, label='matrix method', yerr=std_devs)
+
+    # Set the labels and title
+    ax.set_xlabel('Rank')
+    ax.set_ylabel('Rel. error')
+    ax.set_title('Mean and Deviation of Relative Error for increasing ranks')
+    ax.set_xticks(index)
+    ax.set_xticklabels([f'{(i+1) * 5}' for i in range(num_params)])
+
+    # Show the legend
+    ax.legend()
+
+    # Display the plot
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_err_to_calcs(relative_errors, calculated_values):
+    # Create the figure and axis
+    fig, ax = plt.subplots()
+
+    # Plot the relative errors as a line plot
+    ax.plot(calculated_values, relative_errors, marker='o', linestyle='-', color='b')
+
+    # Set the labels and title
+    ax.set_xlabel('Calculated Values')
+    ax.set_ylabel('Relative Error')
+    ax.set_title('Relative Error vs. Calculated Values')
+
+    # Display the plot
+    plt.show()
+
+
+def plot_err_to_calcs_percentage(relative_errors, calculated_values, p):
+    # Create the figure and axis
+    fig, ax = plt.subplots()
+
+    # Plot the relative errors as a line plot
+    calculated_values = [x / p for x in calculated_values]
+    ax.plot(calculated_values, relative_errors, marker='o', linestyle='-', color='b')
+
+    # Set the labels and title
+    ax.set_xlabel('Calculated Values')
+    ax.set_ylabel('Relative Error')
+    ax.set_title('Relative Error vs. Calculated Values')
+
+    # Display the plot
+    plt.show()
 
