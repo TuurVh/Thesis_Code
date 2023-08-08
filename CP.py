@@ -4,7 +4,6 @@ import numpy as np
 import tensorly as tl
 from tensorly.decomposition import parafac
 from sklearn.cluster import SpectralClustering
-from utils import *
 
 def create_matrix(size, zero_diag=False):
     # Initializing the matrix with all zeros

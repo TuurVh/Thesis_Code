@@ -287,6 +287,13 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
         z_as = np.where(new_abs_tube == max_val)[0][0]
         print(f"max val: {new_tube[z_as]} on Z pos: {z_as}")
 
+        # HIER DE TUBE CHECK + CONTINUE?
+        for prev in z_used:
+            print("prev", prev, "z", z_as)
+            if prev != z_as:
+                new_tube[prev] = 0
+        print("NT", new_tube)
+
         tubes.append(new_tube)
         t_deltas.append(new_tube[z_as])
         z_used.append(z_as)
@@ -305,6 +312,8 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
         c_ds = []
         r_ds = []
         xr_used = []
+        sample_indices, sample_values = generate_matrix_samples(new_matrix)
+        sample_size = len(sample_values)
         # Loop to select k_hat cols and rows for current tube
         k = 0
         m_tot = np.zeros(shape=(shape[1], shape[2]))
@@ -315,13 +324,42 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
 
             approx = np.zeros(len(col_fiber))
             for i in range(k):
-                approx = np.add(approx,
-                                k_cols[i] * k_cols[i][x_as] * (1.0 / r_ds[i]))
+                approx = np.add(approx, k_cols[i] * k_cols[i][x_as] * (1.0 / r_ds[i]))
             print("A:", approx)
 
             new_col = np.subtract(col_fiber, approx)
             new_col = np.subtract(new_col, new_matrix[x_as])
             print("col after", new_col)
+
+            temp_d = new_col[x_as]
+            if temp_d == 0.0:
+                print("delta == 0")
+                new_d = np.max(abs(new_col))
+                if new_d == 0.0:
+                    index_sample_max = np.where(np.abs(sample_values) == max_residu)[0][0]
+                    x_as = sample_indices[index_sample_max][0]
+                    continue
+                temp_d = new_d
+
+            print("tempd:", temp_d)
+            r_ds.append(temp_d)
+
+            k_cols.append(new_col)
+            c_ds.append(max_val)
+            xr_used.append(x_as)
+
+            # reevaluation of samples
+            for s in range(sample_size):
+                x = sample_indices[s, 0]
+                y = sample_indices[s, 1]
+                print(x, y)
+                sample_values[s] = sample_values[s] - (k_cols[k][x] * k_cols[k][y] * (1.0/r_ds[k]))
+
+            # Find the maximum error on the samples
+            if sample_values.size == 0:
+                max_residu = 0
+            else:
+                max_residu = np.max(np.abs(sample_values))
 
             # previous = [i for i, item in enumerate(z_used[0:len(z_used)-1]) if item == z_as]
             # print("previous y", y_used)
@@ -329,21 +367,10 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
             # print("y to delete", to_delete)
             # col_without_previous = set_to_zero(to_delete, new_col.copy())
 
-            col_with_zero = set_to_zero([x_as], new_col.copy())
-            print("col w/ 0:", col_with_zero)
-            max_val, y_as = find_largest_absolute_value(col_with_zero)
-
+            # col_with_zero = set_to_zero([x_as], new_col.copy())
+            # print("col w/ 0:", col_with_zero)
+            max_val, y_as = find_largest_absolute_value(new_col)
             print(f"max val: {max_val} on Y pos: {y_as}")
-            k_cols.append(new_col)
-            c_ds.append(max_val)
-            xr_used.append(x_as)
-
-            temp_d = new_col[x_as]
-            if temp_d == 0.0:
-                print("delta == 0")
-                temp_d = np.max(abs(new_col))
-            print("tempd:", temp_d)
-            r_ds.append(temp_d)
 
             temp_x = x_as
             x_as = y_as
@@ -357,10 +384,6 @@ def aca_k_vectors(tensor, max_rank, k_hat, start_tube=None, random_seed=None):
         matrices.append(m_tot)
         m_deltas.append(max_val)
         x_as = temp_x
-
-        if (x_as, y_as) in tubes_used:
-            x_as = 1
-            y_as = 3
 
         tubes_used.append((x_as, y_as))
 
@@ -479,7 +502,7 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
         rank += 1
 
     if to_cluster:
-        return matrices, m_deltas
+        return matrices, m_deltas, tubes
     else:
         return aca_matrix_norms
 
@@ -574,6 +597,22 @@ def calc_norm(tensor):
                 s += (temp * temp)
     res = np.sqrt(s)
     return res
+
+
+def generate_matrix_samples(matrix):
+    rs, cs = matrix.shape
+    sample_idxs = np.zeros(shape=(rs, 2), dtype=int)
+    sample_values = np.zeros(rs, dtype=float)
+
+    for i in range(rs):
+        x = i
+        y = i
+        while x == y:
+            y = random.randint(0, cs-1)
+        sample_idxs[i, 0] = x
+        sample_idxs[i, 1] = y
+        sample_values[i] = matrix[x][y]
+    return sample_idxs, sample_values
 
 
 def generate_tube_samples(tensor):
