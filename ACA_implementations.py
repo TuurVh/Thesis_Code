@@ -43,7 +43,7 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
     # sample_values[a] = get_element(0, 1, 0, tensor)
 
     # Generate random samples for stopping criteria
-    sample_indices, sample_values = generate_samples(tensor, max_rank)
+    sample_indices, sample_values = generate_samples(tensor, shape[0]*shape[2])
     print(f"Sample indices: {sample_indices} \n with sample values {sample_values}")
     sample_size = len(sample_values)
 
@@ -155,6 +155,8 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         print('all samples', sample_values)
         index_sample_max = np.where(np.abs(sample_values) == max_sample)[0][0]
 
+        x_as = y_as
+
         # If max value of tube is smaller than max value of samples, use max sample as next starting point
         print("Z:", z_max, ", max sample:", max_sample)
         if abs(z_max) < max_sample - 0.001:
@@ -176,7 +178,6 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         aca_norm = compare_aca_original(matrices, tubes, c_deltas, tensor)
         aca_vects_norms.append(aca_norm)
 
-        x_as = y_as
         rank += 1
 
     if to_cluster:
@@ -418,7 +419,7 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
     if random_seed is not None:
         random.seed(random_seed)
 
-    # Generate samples for stopping criteria and better start
+    # Generate samples for better start
     sample_indices, sample_values = generate_tube_samples(tensor)
     print(f"Sample indices: {sample_indices} \n with sample values {sample_values}")
     sample_size = len(sample_values)
@@ -435,9 +436,12 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
         z_as = start_matrix
     tubes_idx.append(z_as)
 
+    restartable_samples = sample_values
+    restartable_indices = sample_indices
+    deleted_indices = np.array([], dtype=int)
     rank = 1
     # Select new skeletons until desired rank is reached.
-    while rank-1 < max_rank:
+    while rank < max_rank+1:
 
         print(f"--------------------- RANK {rank} ----------------------")
         # print(tensor[z_as])
@@ -473,28 +477,73 @@ def aca_matrix_x_vector(tensor, max_rank, start_matrix=None, random_seed=None, t
         m_deltas.append(max_val)
         matrix_idx.append(m_idx)
 
-        # --------- TUBES ---------
         y_as = m_idx[0]
         x_as = m_idx[1]
+
+        # Delete the samples on the pivot row from the restartable samples
+        print("z", z_as)
+        in_chosen_tube = np.where(sample_indices[:, 0] == z_as)[0]
+        print("y;", y_as, "x;", x_as)
+        in_chosen_matrix = np.where((sample_indices[:, 1] == y_as) & (sample_indices[:, 2] == x_as))[0]
+        indices_in_samples = np.concatenate((in_chosen_tube, in_chosen_matrix))
+        if deleted_indices.size == 0:
+            deleted_indices = indices_in_samples
+        else:
+            deleted_indices = np.concatenate((deleted_indices, indices_in_samples), axis=0)
+        restartable_samples = np.delete(sample_values, deleted_indices, axis=0)
+        restartable_indices = np.delete(sample_indices, deleted_indices, axis=0)
+        print("left over", restartable_samples)
+
+        # --------- TUBES ---------
+        # Calculate tube from tensor
         tube_fiber = tensor[:, y_as, x_as]
         print("t:", m_idx, "; ", tube_fiber)
 
+        # Use current approximation to find residual (new_tube)
         approx = np.zeros(len(tube_fiber))
         for i in range(rank-1):
             approx = np.add(approx, matrices[i][m_idx] * tubes[i] * (1.0 / m_deltas[i]))
         new_tube = np.subtract(tube_fiber, approx)
-
         print("t after:", new_tube)
+
+        # Remove previously chosen matrices from options for next matrix
         new_abs_tube = abs(new_tube)
         tube_without_previous = np.delete(new_abs_tube, tubes_idx, axis=0)
+        # Find max value for next iteration
         max_val = np.max(tube_without_previous)
         z_as = np.where(new_abs_tube == max_val)[0][0]
         print(f"max val: {max_val} on Z pos: {z_as}")
 
+        # Store tubes, deltas and used index values
         tubes.append(new_tube)
         t_deltas.append(max_val)
         tubes_idx.append(z_as)
 
+        # Reevaluate samples
+        # for s in range(sample_size):
+        #     x_ = sample_indices[s, 1]
+        #     y_ = sample_indices[s, 2]
+        #     z_ = sample_indices[s, 0]
+        #     temp_sample = sample_values[s]
+        #     sample_values[s] = temp_sample - (matrices[rank-1][x_][y_] * tubes[rank-1][z_] * (1.0/m_deltas[rank-1]))
+        # print("idx", sample_indices)
+        # print("vals", sample_values)
+
+        # Find the maximum error on the samples
+        if restartable_samples.size == 0:
+            max_residu = 0
+        else:
+            max_residu = np.max(np.abs(restartable_samples))
+            print("max residu", max_residu)
+
+        # Check whether the max of the row is smaller than the max residu from the samples, if so, switch
+        if abs(max_val) < max_residu - 0.001:
+            # Switch to the sample with the largest remaining value
+            index_sample_max = np.where(np.abs(restartable_samples) == max_residu)[0][0]
+            # If below is not commented, we update based on the max residu value (but makes it worse..)
+            # z_as = restartable_indices[index_sample_max][0]
+
+        # Reconstruction
         aca_norm = compare_aca_original(matrices, tubes, m_deltas, tensor)
         print("norm diff", aca_norm)
         aca_matrix_norms.append(aca_norm)
@@ -620,7 +669,7 @@ def generate_tube_samples(tensor):
     sample_indices = np.zeros(shape=(zs, 3), dtype=int)
     sample_values = np.zeros(zs, dtype=float)
 
-    # Cycle over all horizontal slices, then take random element of that slice
+    # Cycle over all horizontal slices, then take random (non-diagonal) element of that slice
     for z in range(zs):
         x = random.randint(0, xs-1)
         y = random.randint(0, ys-1)
