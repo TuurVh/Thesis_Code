@@ -18,7 +18,7 @@ def plot_norms_aca_cp(amount_vects, aca_m=None, aca_k=None, aca_v=None, cp_norms
         plt.plot(amount_vects, cp_norms, label='A - CP')
         num_cols += 1
 
-    plt.xlabel("# vectoren")
+    plt.xlabel("# iteraties")
     plt.ylabel("Relatieve fout")
 
     plt.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left", mode="expand", borderaxespad=0, ncol=num_cols)
@@ -101,6 +101,7 @@ def plot_err_to_calcs(relative_errors, calculated_values):
     fig, ax = plt.subplots()
 
     # Plot the relative errors as a line plot
+    ax.plot(calculated_values, relative_errors, marker='o', linestyle='-', color='b')
     ax.plot(calculated_values, relative_errors, marker='o', linestyle='-', color='b')
 
     # Set the labels and title

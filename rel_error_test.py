@@ -1,5 +1,6 @@
 from ACA_implementations import aca_tensor, aca_k_vectors, aca_matrix_x_vector, compare_aca_original
 from ACA_implementations import compare_cp_with_full
+from ACA_T import aca_tensor as aca_vects
 import clustering
 import plotting
 from tensorly.decomposition import parafac
@@ -25,7 +26,7 @@ def get_rel_error(tensor, max_rank, rds, method=''):
         return err
 
     if method == "method2" or method == "vectors":
-        errs = aca_tensor(tensor, max_rank, random_seed=rds)
+        errs = aca_vects(tensor, max_rank, random_seed=rds)
         err = errs[max_rank-1]
         return err
 
@@ -37,9 +38,9 @@ def main():
 
     # big_t = random_tensor((5, 4, 4), 1, 6, seed=1)
     # print(big_t)
-    max_rang = 40
-    amount_iters = 10
-    method = "vectors"
+    max_rang = 20
+    amount_iters = 20
+    method = "method2"
     all_errs = []
 
     for r in range(5, max_rang+1, 5):

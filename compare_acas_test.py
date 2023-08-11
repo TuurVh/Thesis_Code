@@ -1,6 +1,6 @@
 from ACA_implementations import aca_tensor, aca_k_vectors, aca_matrix_x_vector, compare_cp_with_full
-from ACA_tensor import aca_tensor as matrix2
-from ACA_tensor import aca_matrix_x_vector as aca_vector_x_matrix
+from ACA_tensor import aca_tensor as aca2
+from ACA_T import aca_tensor as aca_t
 import plotting
 import tensorly as tl
 from tensorly.decomposition import parafac
@@ -31,16 +31,19 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
     aca_matrix_norms = None
     cp_norms = None
     # ACA that builds tensor from sum of vectors
-    # aca_vects_norms = aca_tensor(big_t, max_rank, start_col=None, random_seed=random_seed)
+    aca_vects_norms = aca_t(big_t, max_rank, random_seed=random_seed)
+    # aca_matrix_norms = aca2(big_t, max_rank, start_col=None, random_seed=random_seed)
+    # aca_k_hat_norms = aca_tensor(big_t, max_rank, start_col=None, random_seed=random_seed)
+
 
     k_hat = 3
     # aca_k_hat_norms = aca_k_vectors(big_t, max_rank, k_hat=k_hat, start_tube=None, random_seed=random_seed)
 
     # Try out tube-matrix
-    aca_vects_norms = matrix2(big_t, max_rank, start_col=None, random_seed=random_seed)
+    # aca_matrix_norms = matrix2(big_t, max_rank, start_col=None, random_seed=random_seed)
 
     # Matrix-Tube implementation
-    # aca_matrix_norms = aca_matrix_x_vector(big_t, max_rank, start_matrix=None, random_seed=random_seed)
+    aca_matrix_norms = aca_matrix_x_vector(big_t, max_rank, start_matrix=None, random_seed=random_seed)
 
     # cp_norms = []
     # for rank in range(1, max_rank+1):
@@ -58,14 +61,14 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
         # plotting.plot_amount_calcs(big_t, k_hat, max_rank)
 
 def main():
-    path = "tensors/person2&3-all_ex_75ts.npy"
-    # big_t = np.load(path)
+    path = "tensors/full_tensor.npy"
+    big_t = np.load(path)
 
-    big_t = random_tensor((4, 4, 4), 1, 20, seed=3)
+    # big_t = random_tensor((5, 6, 6), 1, 20, seed=3)
     print(big_t)
 
     print(f"Tensor is symmetric? -> {tensor_symmetric_test(big_t)}")
-    compare_acas(big_t, max_rank=12, random_seed=2, plot=True)
+    compare_acas(big_t, max_rank=30, random_seed=0, plot=True)
 
 
 if __name__ == "__main__":

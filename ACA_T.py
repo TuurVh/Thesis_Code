@@ -28,30 +28,41 @@ def generate_samples_less(tensor):
 
 def generate_samples(tensor):
     k, j, i = tensor.shape
-
-    sample_indices = None
-    sample_values = None
-    for mat in range(0, k):
-        inds = np.zeros(shape=(j, 3), dtype=int)
-        vals = np.zeros(j, dtype=float)
-        for row in range(0, j):
-            z = mat
-            y = row
-            x = random.randint(0, i - 1)
-            while x == y:
+    all_sample_indices = None
+    all_sample_values = None
+    amount = 0
+    max_amount = 1
+    while amount < max_amount:
+        sample_indices = None
+        sample_values = None
+        for mat in range(0, k):
+            inds = np.zeros(shape=(j, 3), dtype=int)
+            vals = np.zeros(j, dtype=float)
+            for row in range(0, j):
+                z = mat
+                y = row
                 x = random.randint(0, i - 1)
-            inds[row, 0] = z
-            inds[row, 1] = y
-            inds[row, 2] = x
-            vals[row] = get_element(x, y, z, tensor)
-        if sample_indices is None:
-            sample_indices = inds
-            sample_values = vals
+                while x == y:
+                    x = random.randint(0, i - 1)
+                inds[row, 0] = z
+                inds[row, 1] = y
+                inds[row, 2] = x
+                vals[row] = get_element(x, y, z, tensor)
+            if sample_indices is None:
+                sample_indices = inds
+                sample_values = vals
+            else:
+                sample_indices = np.concatenate((sample_indices, inds))
+                sample_values = np.concatenate((sample_values, vals))
+        if all_sample_indices is None:
+            all_sample_indices = sample_indices
+            all_sample_values = sample_values
         else:
-            sample_indices = np.concatenate((sample_indices, inds))
-            sample_values = np.concatenate((sample_values, vals))
+            all_sample_indices = np.concatenate((all_sample_indices, sample_indices))
+            all_sample_values = np.concatenate((all_sample_values, sample_values))
+        amount += 1
 
-    return sample_indices, sample_values
+    return all_sample_indices, all_sample_values
 
 
 def get_element(i, j, k, tensor):
@@ -71,15 +82,23 @@ def get_fiber(tensor, i=None, j=None, k=None):
     return fiber
 
 
+def set_to_zero(indices, numbers):
+    for index in indices:
+        if index < len(numbers):
+            numbers[index] = 0
+    return numbers
+
+
 def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
     rows = []
     cols = []
     tubes = []
+
     r_deltas = []
     c_deltas = []
-    t_deltas = []
 
     x_used = []
+    y_used = []
     z_used = []
 
     aca_vects_norms = []
@@ -95,6 +114,7 @@ def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
     sample_indices, sample_values = generate_samples(tensor)
     print(f"Sample indices: {sample_indices} \n with sample values {sample_values}")
     sample_size = len(sample_values)
+    print("amount samples", sample_size)
 
     # Initialize starting row based on the samples
     index_sample_max = np.argmax(np.abs(sample_values))
@@ -118,6 +138,8 @@ def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
 
         new_row = np.subtract(row_fiber, approx)
         print("newrw", new_row)
+
+        # Update row to not choose same again
 
         r_max_val, x_as = find_largest_absolute_value(new_row)
         print("max", r_max_val)
@@ -153,7 +175,18 @@ def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
         new_tube = np.subtract(tube_fiber, approx)
         print("NT", new_tube)
 
-        t_max_val, z_as = find_largest_absolute_value(new_tube)
+        # Update tube to not choose same row again
+        if rank > 0:
+            if y_used[rank-1] == y_as:
+                to_delete = z_used[rank-1]
+                tube_without_previous = new_tube.copy()
+                tube_without_previous[to_delete] = 0
+            else:
+                tube_without_previous = new_tube
+        else:
+            tube_without_previous = new_tube
+
+        t_max_val, z_as = find_largest_absolute_value(tube_without_previous)
         print('z_as', z_as)
 
         # Append all
@@ -162,6 +195,10 @@ def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
         rows.append(new_row)
         cols.append(new_col)
         tubes.append(new_tube)
+
+        x_used.append(x_as)
+        y_used.append(y_as)
+        z_used.append(z_as)
 
         # ----- REEVALUATE SAMPLES -----
         for s in range(sample_size):
@@ -187,7 +224,10 @@ def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
 
         rank += 1
 
-    return aca_vects_norms
+    if to_cluster:
+        return rows, cols, tubes, r_deltas, c_deltas
+    else:
+        return aca_vects_norms
 
 
 def find_largest_absolute_value(fiber):

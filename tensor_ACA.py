@@ -319,7 +319,7 @@ path = "tensors/person2all_ex_75ts.npy"
 # TENSOR = np.load(path)
 TENSOR = random_tensor((3, 3, 3), 1, 10, seed=1)
 print(TENSOR)
-maxrank = 3
+maxrank = 10
 
 res = aca_tensor(tensor=TENSOR, max_rank=maxrank+1, random_seed=0)
 print(res)

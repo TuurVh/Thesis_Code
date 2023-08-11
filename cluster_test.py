@@ -1,6 +1,7 @@
-from ACA_implementations import aca_tensor, aca_k_vectors, aca_matrix_x_vector
+from ACA_implementations import aca_matrix_x_vector
+from ACA_T import aca_tensor
 from ACA_implementations import compare_cp_with_full
-import clustering
+from clustering import *
 import plotting
 from tensorly.decomposition import parafac
 import numpy as np
@@ -27,7 +28,7 @@ def get_dist_matrix(tensor, max_rank, rds, method=''):
         return m_tot
 
     if method == "method2" or method == "vectors":
-        cs, rs, ts, c_ds, r_ds, t_ds = aca_tensor(tensor, 16, random_seed=None, to_cluster=True)
+        rs, cs, ts, r_ds, c_ds = aca_tensor(tensor, max_rank, random_seed=None, to_cluster=True)
         shape = tensor.shape
         m_tot = np.zeros(shape=(shape[2], shape[1]))
         for i in range(len(cs)):
@@ -37,16 +38,7 @@ def get_dist_matrix(tensor, max_rank, rds, method=''):
         return m_tot
 
 
-def main():
-    path = "tensors/person2-3-5_all_ex_50ts.npy"
-    big_t = np.load(path)
-    shape = big_t.shape
-
-    # big_t = random_tensor((5, 4, 4), 1, 6, seed=1)
-    # print(big_t)
-    max_rang = 40
-    amount_iters = 10
-    method = "matrix"
+def spect_and_medoids(big_t, method, max_rang, amount_iters):
     all_spect = []
     all_medoid = []
 
@@ -68,17 +60,36 @@ def main():
             # print(f"with medoids: {medoids}")
 
             ground_truth = ([0]*6 + [1]*6 + [2]*6)*3
-            ari_s = clustering.get_ARI_spectral(d_matrix, amount_clusters, ground_truth)
+            ari_s = get_ARI_spectral(d_matrix, amount_clusters, ground_truth)
             print("ARI spectral =", ari_s)
             aris_spect.append(ari_s)
 
-            ari_m = clustering.get_ARI_k_medoids(d_matrix, amount_clusters, ground_truth)
+            ari_m = get_ARI_k_medoids(d_matrix, amount_clusters, ground_truth)
             print("ARI k-medoids =", ari_m)
             aris_medoid.append(ari_m)
         all_spect.append(aris_spect)
         all_medoid.append(aris_medoid)
     print("res,", all_spect)
     plotting.plot_aris(all_spect, all_medoid)
+
+
+def get_k_means(big_t, method, max_rank, amount_iters):
+    rs, cs, ts, r_ds, c_ds = aca_tensor(big_t, max_rank, random_seed=None, to_cluster=True)
+    k_means(rs, n_clusters=3)
+
+
+def main():
+    path = "tensors/person2&3-all_ex_75ts.npy"
+    big_t = np.load(path)
+    shape = big_t.shape
+
+    # big_t = random_tensor((5, 4, 4), 1, 6, seed=1)
+    # print(big_t)
+    max_rang = 30
+    amount_iters = 10
+    method = "method2"
+    # spect_and_medoids(big_t, method, max_rang, amount_iters)
+    get_k_means(big_t, method, max_rang, amount_iters)
 
 
 if __name__ == "__main__":

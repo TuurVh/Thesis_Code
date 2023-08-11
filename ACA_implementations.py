@@ -43,7 +43,7 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
     # sample_values[a] = get_element(0, 1, 0, tensor)
 
     # Generate random samples for stopping criteria
-    sample_indices, sample_values = generate_samples(tensor, shape[0]*shape[2])
+    sample_indices, sample_values = generate_samples(tensor)
     print(f"Sample indices: {sample_indices} \n with sample values {sample_values}")
     sample_size = len(sample_values)
 
@@ -83,8 +83,8 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         print("col after", new_col)
 
         # previous = [i for i, item in enumerate(z_used[0:len(z_used)-1]) if item == z_as]
-        # print("previous y", y_used)
-        # to_delete = [y_used[p] for p in previous]
+        # print("previous y", x_used)
+        # to_delete = [x_used[p] for p in previous]
         # print("y to delete", to_delete)
         # col_without_previous = set_to_zero(to_delete, new_col.copy())
 
@@ -122,18 +122,19 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
         print("t after:", new_tube)
         t = new_tube.copy()
 
-        for prev in z_used:
-            print("prev", prev, "z", z_as)
-            if prev != z_as:
-                new_tube[prev] = 0
-        print("NT", new_tube)
+        # for prev in z_used:
+        #     print("prev", prev, "z", z_as)
+        #     if prev != z_as:
+        #         new_tube[prev] = 0
+        # print("NT", new_tube)
 
-        previous = [i for i, item in enumerate(x_used[0:len(x_used)-1]) if item == x_as]
-        print("previous z", z_used)
-        to_delete = [z_used[p] for p in previous]
-        print("z to delete", to_delete)
-        tube_without_previous = set_to_zero(to_delete, t)
-        z_max, z_as = find_largest_absolute_value(tube_without_previous)
+        # previous = [i for i, item in enumerate(x_used[0:len(x_used)-1]) if item == x_as]
+        # print("previous z", z_used)
+        # to_delete = [z_used[p] for p in previous]
+        # to_delete.append(z_as)
+        # print("z to delete", to_delete)
+        # tube_without_previous = set_to_zero(to_delete, t)
+        z_max, z_as = find_largest_absolute_value(new_tube)
 
         print(f"max val: {z_max} on Z pos: {z_as}")
 
@@ -143,8 +144,8 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
 
         # ----- REEVALUATE SAMPLES -----
         for s in range(sample_size):
-            x_ = sample_indices[s, 1]
-            y_ = sample_indices[s, 2]
+            x_ = sample_indices[s, 2]
+            y_ = sample_indices[s, 1]
             z_ = sample_indices[s, 0]
             temp_sample = sample_values[s]
             sample_values[s] = temp_sample - (cols[rank][x_] * cols[rank][y_] * tubes[rank][z_] *
@@ -159,13 +160,13 @@ def aca_tensor(tensor, max_rank, start_col=None, random_seed=None, to_cluster=Fa
 
         # If max value of tube is smaller than max value of samples, use max sample as next starting point
         print("Z:", z_max, ", max sample:", max_sample)
-        if abs(z_max) < max_sample - 0.001:
-            print(" THIS HAPPENS &&")
-            x_as = sample_indices[index_sample_max, 1]
-            y_as = sample_indices[index_sample_max, 2]
-            z_as = sample_indices[index_sample_max, 0]
-            x_used.append(x_as)
-            z_used.append(z_as)
+        # if abs(z_max) < max_sample - 0.001:
+        #     print(" THIS HAPPENS &&")
+        #     x_as = sample_indices[index_sample_max, 2]
+        #     y_as = sample_indices[index_sample_max, 1]
+        #     z_as = sample_indices[index_sample_max, 0]
+            # x_used.append(x_as)
+            # z_used.append(z_as)
 
         # --------- RECONSTRUCTION ---------
         # factors_aca = aca_as_cp(cols, cols, tubes, r_deltas, c_deltas)
@@ -684,21 +685,30 @@ def generate_tube_samples(tensor):
     return sample_indices, sample_values
 
 
-def generate_samples(tensor, amount):
-    shape = tensor.shape
-    sample_indices = np.zeros(shape=(amount, 3), dtype=int)
-    sample_values = np.zeros(amount, dtype=float)
+def generate_samples(tensor):
+    k, j, i = tensor.shape
 
-    for a in range(amount):
-        i = random.randint(0, shape[1]-1)
-        j = random.randint(0, shape[2]-1)
-        while i == j:
-            j = random.randint(0, shape[2]-1)
-        k = random.randint(0, shape[0]-1)
-        sample_indices[a, 0] = k
-        sample_indices[a, 1] = j
-        sample_indices[a, 2] = i
-        sample_values[a] = get_element(i, j, k, tensor)
+    sample_indices = None
+    sample_values = None
+    for mat in range(0, k):
+        inds = np.zeros(shape=(j, 3), dtype=int)
+        vals = np.zeros(j, dtype=float)
+        for row in range(0, j):
+            z = mat
+            y = row
+            x = random.randint(0, i - 1)
+            while x == y:
+                x = random.randint(0, i - 1)
+            inds[row, 0] = z
+            inds[row, 1] = y
+            inds[row, 2] = x
+            vals[row] = get_element(x, y, z, tensor)
+        if sample_indices is None:
+            sample_indices = inds
+            sample_values = vals
+        else:
+            sample_indices = np.concatenate((sample_indices, inds))
+            sample_values = np.concatenate((sample_values, vals))
 
     return sample_indices, sample_values
 

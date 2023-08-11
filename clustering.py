@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.cluster import SpectralClustering
+from sklearn.cluster import SpectralClustering, KMeans
 from pyclustering.cluster.kmedoids import kmedoids
 import random
 import dtaidistance
@@ -56,6 +56,11 @@ def get_ARI_k_medoids(matrix, n_clusters, real_classes):
     results = transform_medoids_outcome(clusters, length)
     score = adjusted_rand_score(real_classes, results)
     return score
+
+
+def k_means(vectors, n_clusters):
+    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(vectors)
+    print(kmeans.labels_)
 
 
 def transform_medoids_outcome(clusters, l):
