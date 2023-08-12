@@ -16,12 +16,12 @@ def choose_skeletons_tensor(path, amount_ts, exercises=None, persons=None, save_
 
     handle = h5py.File(path, 'r')
     column_names = hdf_readtest.decode(handle.get("{}/axis0".format(keys[0]))[:])
-    # columns = column_names[0:amount_ts]
-    columns = ["AnkleLeftX", "AnkleLeftY", "AnkleLeftZ", "AnkleRightX", "AnkleRightY", "AnkleRightZ", "HipLeftX",
-               "HipLeftY", "HipLeftZ", "HipRightX", "HipRightY", "HipRightZ",
-               "ShoulderLeftX", "ShoulderLeftY", "ShoulderLeftZ",
-               "ShoulderRightX", "ShoulderRightY", "ShoulderRightZ"
-               ]
+    columns = column_names[0:amount_ts]
+    # columns = ["AnkleLeftX", "AnkleLeftY", "AnkleLeftZ", "AnkleRightX", "AnkleRightY", "AnkleRightZ", "HipLeftX",
+    #            "HipLeftY", "HipLeftZ", "HipRightX", "HipRightY", "HipRightZ",
+    #            "ShoulderLeftX", "ShoulderLeftY", "ShoulderLeftZ",
+    #            "ShoulderRightX", "ShoulderRightY", "ShoulderRightZ"
+    #            ]
 
     skeletons = []
     if exercises is not None:
@@ -53,12 +53,12 @@ def choose_skeletons_tensor(path, amount_ts, exercises=None, persons=None, save_
             person1 = vids[i]
             p_df = hdf_readtest.partial_load(path, key=person1, col=c)
             ts_p1 = np.concatenate(p_df.to_numpy())
-            # ts_p1 = zscore(ts_p1)
+            ts_p1 = zscore(ts_p1)
             for j in range(i+1, len(vids)):
                 person2 = vids[j]
                 p_df = hdf_readtest.partial_load(path, key=person2, col=c)
                 ts_p2 = np.concatenate(p_df.to_numpy())
-                # ts_p2 = zscore(ts_p2)
+                ts_p2 = zscore(ts_p2)
 
                 # Calculate the DTW-distance between the two TS and store in distance matrix
                 temp = dtaidistance.dtw.distance(ts_p1, ts_p2, use_c=True)
@@ -111,6 +111,13 @@ def make_short_tensor(path, amount_columns, vids, save_tensor=False):
     return tensor
 
 
+def z_normalize_time_series(time_series):
+    mean = np.mean(time_series)
+    std_dev = np.std(time_series)
+    z_normalized_series = (time_series - mean) / std_dev
+    return z_normalized_series
+
+
 def make_tensor(path, save_tensor=None):
     overview = pd.read_hdf(path, key="overview")
     persons = overview["df_key"]
@@ -146,7 +153,7 @@ def make_tensor(path, save_tensor=None):
 path = "data/amie-kinect-data.hdf"
 
 # start_time = time.time()
-T = make_tensor(path, save_tensor="tensors/notfull_tensor")
+# T = make_tensor(path, save_tensor="tensors/notfull_tensor")
 # end_time = time.time()
 # duration = end_time - start_time
 # print("duration of one execution = ", duration // 60, "minutes and ", duration % 60, 'seconds.')
@@ -154,7 +161,7 @@ T = make_tensor(path, save_tensor="tensors/notfull_tensor")
 # T = make_short_tensor(path, amount_columns=9, vids=40, save_tensor=True)
 # for a in range(50, 76, 10):
 #     save = "tensors/person2-3-5_all_ex_" + str(a) + "ts"
-# T = choose_skeletons_tensor(path, amount_ts=75, persons=["person2"], save_tensor_to="tensors/person2_ankle_hip_shoulder")
+T = choose_skeletons_tensor(path, amount_ts=75, persons=["person2", "person3"], save_tensor_to="tensors/person2-3-ALL-normalized")
 # T = choose_skeletons_tensor(path, amount_ts=75, exercises=["squat"], save_tensor_to="tensors/all_p_squat")
 print("shape: ", T.shape)
 print("tensor: ", T)

@@ -74,18 +74,22 @@ def spect_and_medoids(big_t, method, max_rang, amount_iters):
 
 
 def get_k_means(big_t, method, max_rank, amount_iters):
-    rs, cs, ts, r_ds, c_ds = aca_tensor(big_t, max_rank, random_seed=None, to_cluster=True)
-    k_means(rs, n_clusters=3)
+    rs, cs, ts, r_ds, c_ds = aca_tensor(big_t, max_rank, random_seed=0, to_cluster=True)
+    to_cluster = np.transpose(rs)
+    # to_cluster = np.transpose(cs)
+    km = k_means(to_cluster, n_clusters=3)
+    ari = get_ARI_k_means(km)
+    print("de ari score is", ari)
 
 
 def main():
-    path = "tensors/person2&3-all_ex_75ts.npy"
+    path = "tensors/full_tensor.npy"
     big_t = np.load(path)
     shape = big_t.shape
 
     # big_t = random_tensor((5, 4, 4), 1, 6, seed=1)
     # print(big_t)
-    max_rang = 30
+    max_rang = 10
     amount_iters = 10
     method = "method2"
     # spect_and_medoids(big_t, method, max_rang, amount_iters)

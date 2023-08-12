@@ -264,8 +264,8 @@ def compare_aca_original(matrices, tubes, m_delta, original):
         t += np.einsum('i,jk->ijk', tube, matrix)
     print("RECON", t)
     # Fill diagonal of each frontal matrix in tensor with zeros
-    # for i in range(len(t)):
-    #     np.fill_diagonal(t[i], 0)
+    for i in range(len(t)):
+        np.fill_diagonal(t[i], 0)
 
     # Compare with original tensor
     difference = original-t

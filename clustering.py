@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.cluster import SpectralClustering, KMeans
 from pyclustering.cluster.kmedoids import kmedoids
 import random
+import pandas as pd
 import dtaidistance
 from sklearn.metrics.cluster import adjusted_rand_score
 
@@ -23,6 +24,27 @@ def distance_to_similarity(D, r=None):
 
 def make_symmetric(S):
     return (S + S.T) / 2
+
+
+def k_means(vectors, n_clusters):
+    kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(vectors)
+    return kmeans
+
+
+def get_ARI_k_means(kmeans):
+    real_classes = get_GT()
+    print("real  :", real_classes)
+    print("approx:", ', '.join(map(str, kmeans.labels_)))
+    score = adjusted_rand_score(real_classes, kmeans.labels_)
+    return score
+
+
+def get_GT():
+    data = pd.read_csv('overview.csv')
+    exercise_mapping = {'squat': 0, 'lunge': 1, 'sidelunge': 2}
+    exercise_list = [exercise_mapping[exercise] for exercise in data['exercise']]
+
+    return exercise_list
 
 
 def spectral(distance_matrix, n_clusters):
@@ -56,11 +78,6 @@ def get_ARI_k_medoids(matrix, n_clusters, real_classes):
     results = transform_medoids_outcome(clusters, length)
     score = adjusted_rand_score(real_classes, results)
     return score
-
-
-def k_means(vectors, n_clusters):
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(vectors)
-    print(kmeans.labels_)
 
 
 def transform_medoids_outcome(clusters, l):
