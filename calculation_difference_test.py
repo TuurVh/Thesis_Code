@@ -1,7 +1,7 @@
 from ACA_implementations import aca_k_vectors, aca_matrix_x_vector, compare_cp_with_full, \
     compare_aca_original
 from ACA_T import aca_tensor
-import plotting
+import plot_utils
 import numpy as np
 
 def amount_calculations(big_t, max_rank, random_seed, method=''):
@@ -44,8 +44,8 @@ def main():
         calc = np.mean(calcs)
         all_calcs.append(calc)
     print(all_errs, all_calcs)
-    plotting.plot_err_to_calcs(all_errs, all_calcs)
-    plotting.plot_err_to_calcs_percentage(all_errs, all_calcs, p)
+    plot_utils.plot_err_to_calcs(all_errs, all_calcs)
+    plot_utils.plot_err_to_calcs_percentage(all_errs, all_calcs, p)
 
 
 if __name__ == "__main__":

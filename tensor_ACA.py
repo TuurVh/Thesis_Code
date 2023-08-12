@@ -2,7 +2,7 @@ import random
 import numpy as np
 import tensorly as tl
 import logging
-import plotting
+import plot_utils
 from math import sqrt
 
 # Create logger
@@ -323,5 +323,5 @@ maxrank = 10
 
 res = aca_tensor(tensor=TENSOR, max_rank=maxrank+1, random_seed=0)
 print(res)
-plotting.plot_norms_aca_cp(maxrank, aca_v=res, aca_k=None, aca_m=None, cp_norms=None)
+plot_utils.plot_norms_aca_cp(maxrank, aca_v=res, aca_k=None, aca_m=None, cp_norms=None)
 

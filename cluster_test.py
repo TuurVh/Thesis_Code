@@ -1,8 +1,8 @@
 from ACA_implementations import aca_matrix_x_vector
 from ACA_T import aca_tensor
 from ACA_implementations import compare_cp_with_full
-from clustering import *
-import plotting
+from cluster_utils import *
+import plot_utils
 from tensorly.decomposition import parafac
 import numpy as np
 
@@ -70,7 +70,7 @@ def spect_and_medoids(big_t, method, max_rang, amount_iters):
         all_spect.append(aris_spect)
         all_medoid.append(aris_medoid)
     print("res,", all_spect)
-    plotting.plot_aris(all_spect, all_medoid)
+    plot_utils.plot_aris(all_spect, all_medoid)
 
 
 def get_k_means(big_t, method, max_rank, amount_iters):

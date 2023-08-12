@@ -1,7 +1,7 @@
 from ACA_implementations import aca_tensor, aca_k_vectors, aca_matrix_x_vector, compare_cp_with_full
 from ACA_tensor import aca_tensor as aca2
 from ACA_T import aca_tensor as aca_t
-import plotting
+import plot_utils
 import tensorly as tl
 from tensorly.decomposition import parafac
 import numpy as np
@@ -57,7 +57,7 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
     # print("CP:", cp_norms)
 
     if plot:
-        plotting.plot_norms_aca_cp(max_rank, aca_v=aca_vects_norms, aca_k=aca_k_hat_norms, aca_m=aca_matrix_norms, cp_norms=cp_norms)
+        plot_utils.plot_norms_aca_cp(max_rank, aca_v=aca_vects_norms, aca_k=aca_k_hat_norms, aca_m=aca_matrix_norms, cp_norms=cp_norms)
         # plotting.plot_amount_calcs(big_t, k_hat, max_rank)
 
 def main():

@@ -1,8 +1,8 @@
 from ACA_implementations import aca_tensor, aca_k_vectors, aca_matrix_x_vector, compare_aca_original
 from ACA_implementations import compare_cp_with_full
 from ACA_T import aca_tensor as aca_vects
-import clustering
-import plotting
+import cluster_utils
+import plot_utils
 from tensorly.decomposition import parafac
 import numpy as np
 
@@ -52,7 +52,7 @@ def main():
             error_for_rank.append(error)
         all_errs.append(error_for_rank)
     print("errs", all_errs)
-    plotting.plot_rel_errs(all_errs)
+    plot_utils.plot_rel_errs(all_errs)
 
 
 if __name__ == "__main__":
