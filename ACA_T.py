@@ -1,7 +1,7 @@
 import random
 import numpy as np
-import tensorly as tl
 import random as rnd
+from tensorly.decomposition import parafac
 
 # Set print to print matrices and vectors in one line
 np.set_printoptions(linewidth=np.inf)
@@ -87,6 +87,11 @@ def set_to_zero(indices, numbers):
         if index < len(numbers):
             numbers[index] = 0
     return numbers
+
+
+def get_CP_decomposition(tensor, max_rank):
+    factors = parafac(tensor, rank=max_rank, normalize_factors=False)[1]
+    return factors
 
 
 def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
@@ -254,6 +259,7 @@ def preprocess_to_matrices(cols, rows, r_deltas):
         matrix = np.outer(rows[idx], col) / r_deltas[idx]
         matrices.append(matrix)
     return matrices
+
 
 def compare_aca_original(matrices, tubes, m_delta, original):
     t = np.zeros(original.shape)

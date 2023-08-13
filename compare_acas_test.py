@@ -43,7 +43,7 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
     # aca_matrix_norms = matrix2(big_t, max_rank, start_col=None, random_seed=random_seed)
 
     # Matrix-Tube implementation
-    # aca_matrix_norms = aca_matrix_x_vector(big_t, max_rank, start_matrix=None, random_seed=random_seed)
+    aca_matrix_norms = aca_matrix_x_vector(big_t, max_rank, start_matrix=None, random_seed=random_seed)
 
     # cp_norms = []
     # for rank in range(1, max_rank+1):
@@ -61,14 +61,14 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
         # plotting.plot_amount_calcs(big_t, k_hat, max_rank)
 
 def main():
-    path = "tensors/person2&3-all_ex_75ts.npy"
+    path = "tensors/full_tensor.npy"
     big_t = np.load(path)
 
     # big_t = random_tensor((5, 6, 6), 1, 20, seed=3)
     print(big_t)
 
     print(f"Tensor is symmetric? -> {tensor_symmetric_test(big_t)}")
-    compare_acas(big_t, max_rank=42, random_seed=0, plot=True)
+    compare_acas(big_t, max_rank=42, random_seed=2, plot=True)
 
 
 if __name__ == "__main__":

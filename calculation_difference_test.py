@@ -24,15 +24,17 @@ def amount_calculations(big_t, max_rank, random_seed, method=''):
 
 
 def main():
-    path = "tensors/person2&3-all_ex_75ts.npy"
+    path = "tensors/full_tensor.npy"
     tensor = np.load(path)
 
     max_rang = 50
-    amount_iters = 2
-    method = "method2"
+    amount_iters = 10
+    method = "method1"
     all_errs = []
     all_calcs = []
     p = 1
+
+    # plot_utils.plot_rank_to_calcs(tensor, 50, 5)
 
     for r in range(5, max_rang+1, 5):
         print("for rank:", r)

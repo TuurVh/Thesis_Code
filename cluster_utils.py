@@ -3,7 +3,7 @@ from sklearn.cluster import SpectralClustering, KMeans
 from pyclustering.cluster.kmedoids import kmedoids
 import random
 import pandas as pd
-import dtaidistance
+import test_utils
 from sklearn.metrics.cluster import adjusted_rand_score
 
 
@@ -26,8 +26,10 @@ def make_symmetric(S):
     return (S + S.T) / 2
 
 
-def k_means(vectors, n_clusters):
+def k_means(vectors, n_clusters, store_result=False):
     kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(vectors)
+    if store_result:
+        test_utils.write_to_excel(kmeans.labels_, n_clusters)
     return kmeans
 
 

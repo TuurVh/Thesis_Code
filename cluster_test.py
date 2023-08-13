@@ -1,22 +1,12 @@
 from ACA_implementations import aca_matrix_x_vector
-from ACA_T import aca_tensor
+from ACA_T import aca_tensor, get_CP_decomposition
 from ACA_implementations import compare_cp_with_full
 from cluster_utils import *
 import plot_utils
-from tensorly.decomposition import parafac
 import numpy as np
 
 # Set print to print matrices and vectors in one line
 np.set_printoptions(linewidth=np.inf)
-
-
-def random_tensor(shape, low, high, seed):
-    np.random.seed(seed)
-    tensor = np.random.randint(low=low, high=high, size=shape)
-    for i in range(shape[0]):
-        np.fill_diagonal(tensor[i], 0)
-    return tensor
-
 
 def get_dist_matrix(tensor, max_rank, rds, method=''):
     if method == "method1" or method == "matrix":
@@ -42,6 +32,9 @@ def spect_and_medoids(big_t, method, max_rang, amount_iters):
     all_spect = []
     all_medoid = []
 
+    amount_clusters = 3
+    ground_truth = ([0] * 6 + [1] * 6 + [2] * 6) * 3
+
     for r in range(5, max_rang+1, 5):
         print("for rank:", r)
         aris_spect = []
@@ -49,17 +42,7 @@ def spect_and_medoids(big_t, method, max_rang, amount_iters):
         for s in range(amount_iters):
             seed = s
             d_matrix = get_dist_matrix(big_t, method=method, max_rank=r, rds=seed)
-            amount_clusters = 3
-            # res_spectral = clustering.spectral(d_matrix, amount_clusters)
-            # print(f"Result for spectral clustering with {amount_clusters} clusters: \n {res_spectral}")
 
-            # clusters, medoids = clustering.k_medoids(d_matrix, amount_clusters)
-            # print(f"Result for K-medoids with {amount_clusters} clusters:")
-            # for i, c in enumerate(clusters):
-            #     print(f"Cluster {i}: {c}")
-            # print(f"with medoids: {medoids}")
-
-            ground_truth = ([0]*6 + [1]*6 + [2]*6)*3
             ari_s = get_ARI_spectral(d_matrix, amount_clusters, ground_truth)
             print("ARI spectral =", ari_s)
             aris_spect.append(ari_s)
@@ -73,11 +56,38 @@ def spect_and_medoids(big_t, method, max_rang, amount_iters):
     plot_utils.plot_aris(all_spect, all_medoid)
 
 
-def get_k_means(big_t, method, max_rank, amount_iters):
-    rs, cs, ts, r_ds, c_ds = aca_tensor(big_t, max_rank, random_seed=0, to_cluster=True)
-    to_cluster = np.transpose(rs)
-    # to_cluster = np.transpose(cs)
-    km = k_means(to_cluster, n_clusters=3)
+def ARI_kmeans_CP(tensor, max_rang, amount_iters, k):
+    all_kmeans = []
+    all_CP = []
+    for r in range(5, max_rang + 1, 5):
+        print("for rank:", r)
+        aris_kmeans = []
+        cp_facts = get_CP_decomposition(tensor, r)
+        to_cluster = cp_facts[2]
+        cp_km = k_means(to_cluster, n_clusters=k, store_result=False)
+        ari_cp = get_ARI_k_means(cp_km)
+        all_CP.append(ari_cp)
+        for _ in range(amount_iters):
+            rs, cs, ts, r_ds, c_ds = aca_tensor(tensor, r, random_seed=None, to_cluster=True)
+            to_cluster = np.transpose(cs)
+            km = k_means(to_cluster, n_clusters=k, store_result=False)
+            ari = get_ARI_k_means(km)
+            aris_kmeans.append(ari)
+        all_kmeans.append(aris_kmeans)
+    plot_utils.plot_kmeans_aris(all_kmeans, all_CP)
+
+
+def get_k_means(big_t, method, max_rank):
+    if method == "method2":
+        rs, cs, ts, r_ds, c_ds = aca_tensor(big_t, max_rank, random_seed=0, to_cluster=True)
+        to_cluster = np.transpose(cs)
+        print(to_cluster)
+        # to_cluster = np.transpose(cs)
+    elif method == "CP":
+        factors = get_CP_decomposition(big_t, max_rank)
+        to_cluster = factors[2]
+        print("facts", factors)
+    km = k_means(to_cluster, n_clusters=3, store_result=False)
     ari = get_ARI_k_means(km)
     print("de ari score is", ari)
 
@@ -85,15 +95,14 @@ def get_k_means(big_t, method, max_rank, amount_iters):
 def main():
     path = "tensors/full_tensor.npy"
     big_t = np.load(path)
-    shape = big_t.shape
-
-    # big_t = random_tensor((5, 4, 4), 1, 6, seed=1)
-    # print(big_t)
-    max_rang = 10
-    amount_iters = 10
+    k = 3
+    max_rang = 25
+    amount_iters = 1
+    # Method can be "method2" or "CP"
     method = "method2"
     # spect_and_medoids(big_t, method, max_rang, amount_iters)
-    get_k_means(big_t, method, max_rang, amount_iters)
+    # get_k_means(big_t, method, max_rang)
+    ARI_kmeans_CP(big_t, max_rang, amount_iters, k)
 
 
 if __name__ == "__main__":

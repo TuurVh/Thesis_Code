@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import dtaidistance
+import openpyxl
 from matplotlib import pyplot as plt
 from scipy.stats import zscore
 import time
@@ -53,12 +54,12 @@ def choose_skeletons_tensor(path, amount_ts, exercises=None, persons=None, save_
             person1 = vids[i]
             p_df = hdf_readtest.partial_load(path, key=person1, col=c)
             ts_p1 = np.concatenate(p_df.to_numpy())
-            ts_p1 = zscore(ts_p1)
+            # ts_p1 = zscore(ts_p1)
             for j in range(i+1, len(vids)):
                 person2 = vids[j]
                 p_df = hdf_readtest.partial_load(path, key=person2, col=c)
                 ts_p2 = np.concatenate(p_df.to_numpy())
-                ts_p2 = zscore(ts_p2)
+                # ts_p2 = zscore(ts_p2)
 
                 # Calculate the DTW-distance between the two TS and store in distance matrix
                 temp = dtaidistance.dtw.distance(ts_p1, ts_p2, use_c=True)
@@ -149,6 +150,11 @@ def make_tensor(path, save_tensor=None):
         np.save(save_tensor, tensor)
     return tensor
 
+
+def save_overview(path):
+    overview = pd.read_hdf(path, key="overview")
+    df = pd.DataFrame(overview)
+    df.to_csv("overview.csv")
 
 path = "data/amie-kinect-data.hdf"
 
