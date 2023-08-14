@@ -33,20 +33,29 @@ def k_means(vectors, n_clusters, store_result=False):
     return kmeans
 
 
-def get_ARI_k_means(kmeans):
-    real_classes = get_GT()
+def get_ARI_k_means(kmeans, fv):
+    real_classes = get_GT(fv)
     print("real  :", real_classes)
     print("approx:", ', '.join(map(str, kmeans.labels_)))
     score = adjusted_rand_score(real_classes, kmeans.labels_)
     return score
 
 
-def get_GT():
-    data = pd.read_csv('overview.csv')
-    exercise_mapping = {'squat': 0, 'lunge': 1, 'sidelunge': 2}
-    exercise_list = [exercise_mapping[exercise] for exercise in data['exercise']]
+def get_GT(feature_vects):
+    if feature_vects == 'rows':
+        # data = pd.read_csv('overview.csv')
+        # exercise_mapping = {'squat': 0, 'lunge': 1, 'sidelunge': 2}
+        # GT_list = [exercise_mapping[exercise] for exercise in data['exercise']]
 
-    return exercise_list
+        data = pd.read_csv('GT_rows.csv')
+        column_values = data['GT']
+        GT_list = column_values.tolist()
+    else:
+        data = pd.read_csv('GT_tubes.csv')
+        column_values = data['GT']
+        GT_list = column_values.tolist()
+
+    return GT_list
 
 
 def spectral(distance_matrix, n_clusters):

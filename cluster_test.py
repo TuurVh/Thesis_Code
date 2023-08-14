@@ -56,22 +56,28 @@ def spect_and_medoids(big_t, method, max_rang, amount_iters):
     plot_utils.plot_aris(all_spect, all_medoid)
 
 
-def ARI_kmeans_CP(tensor, max_rang, amount_iters, k):
+def ARI_kmeans_CP(tensor, max_rang, amount_iters, k, feature_vect='rows'):
     all_kmeans = []
     all_CP = []
-    for r in range(5, max_rang + 1, 5):
+    for r in range(5, max_rang + 1, 10):
         print("for rank:", r)
         aris_kmeans = []
-        cp_facts = get_CP_decomposition(tensor, r)
-        to_cluster = cp_facts[2]
+        cp_facts = get_CP_decomposition(tensor, r)[1]
+        if feature_vect == 'rows':
+            to_cluster = cp_facts[2]
+        else:
+            to_cluster = cp_facts[0]
         cp_km = k_means(to_cluster, n_clusters=k, store_result=False)
-        ari_cp = get_ARI_k_means(cp_km)
+        ari_cp = get_ARI_k_means(cp_km, fv=feature_vect)
         all_CP.append(ari_cp)
         for _ in range(amount_iters):
             rs, cs, ts, r_ds, c_ds = aca_tensor(tensor, r, random_seed=None, to_cluster=True)
-            to_cluster = np.transpose(cs)
+            if feature_vect == 'rows':
+                to_cluster = np.transpose(rs)
+            else:
+                to_cluster = np.transpose(ts)
             km = k_means(to_cluster, n_clusters=k, store_result=False)
-            ari = get_ARI_k_means(km)
+            ari = get_ARI_k_means(km, fv=feature_vect)
             aris_kmeans.append(ari)
         all_kmeans.append(aris_kmeans)
     plot_utils.plot_kmeans_aris(all_kmeans, all_CP)
@@ -80,11 +86,11 @@ def ARI_kmeans_CP(tensor, max_rang, amount_iters, k):
 def get_k_means(big_t, method, max_rank):
     if method == "method2":
         rs, cs, ts, r_ds, c_ds = aca_tensor(big_t, max_rank, random_seed=0, to_cluster=True)
-        to_cluster = np.transpose(cs)
+        to_cluster = np.transpose(rs)
         print(to_cluster)
         # to_cluster = np.transpose(cs)
     elif method == "CP":
-        factors = get_CP_decomposition(big_t, max_rank)
+        factors = get_CP_decomposition(big_t, max_rank)[1]
         to_cluster = factors[2]
         print("facts", factors)
     km = k_means(to_cluster, n_clusters=3, store_result=False)
@@ -95,14 +101,14 @@ def get_k_means(big_t, method, max_rank):
 def main():
     path = "tensors/full_tensor.npy"
     big_t = np.load(path)
-    k = 3
-    max_rang = 25
-    amount_iters = 1
+    k = 6
+    max_rang = 45
+    amount_iters = 10
     # Method can be "method2" or "CP"
     method = "method2"
     # spect_and_medoids(big_t, method, max_rang, amount_iters)
     # get_k_means(big_t, method, max_rang)
-    ARI_kmeans_CP(big_t, max_rang, amount_iters, k)
+    ARI_kmeans_CP(big_t, max_rang, amount_iters, k, feature_vect='rows')
 
 
 if __name__ == "__main__":

@@ -67,14 +67,14 @@ def plot_kmeans_aris(k_data, cp_data):
 
     fig, ax = plt.subplots()
 
-    ax.bar(index - bar_width / 2, means_spec, bar_width, label='K-Means', yerr=std_devs_spec)
-    ax.bar(index + bar_width / 2, cp_data, bar_width, label='CP')
+    ax.bar(index - bar_width / 2, means_spec, bar_width, label='ACA-T', yerr=std_devs_spec)
+    ax.bar(index + bar_width / 2, cp_data, bar_width, label='CP', color='tab:red')
 
     ax.set_xlabel('Rang')
     ax.set_ylabel('ARI-score')
-    ax.set_title('ARI-score voor verschillende rangen.')
+    ax.set_title('ARI-score voor verschillende rangen, rijen als feature vectoren.')
     ax.set_xticks(index)
-    ax.set_xticklabels([f'{(i+1) * 5}' for i in range(num_params)])
+    ax.set_xticklabels([f'{(i*10) + 5}' for i in range(num_params)])
 
     ax.legend()
 
@@ -94,6 +94,29 @@ def plot_rel_errs(data):
     fig, ax = plt.subplots()
 
     ax.bar(index, means, bar_width, label='Matrix methode', yerr=std_devs, color='tab:orange')
+
+    ax.set_xlabel('Rang')
+    ax.set_ylabel('Relatieve fout')
+    ax.set_title('Relatieve fout van de benadering per rang')
+    ax.set_xticks(index)
+    ax.set_xticklabels([f'{(i+1) * 5}' for i in range(num_params)])
+
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_rel_errs_cp(data):
+
+    num_params = len(data)
+
+    bar_width = 0.35
+    index = np.arange(num_params)
+
+    fig, ax = plt.subplots()
+
+    ax.bar(index, data, bar_width, label='CP decompositie', color='tab:red')
 
     ax.set_xlabel('Rang')
     ax.set_ylabel('Relatieve fout')

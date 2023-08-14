@@ -2,6 +2,7 @@ import random
 import numpy as np
 import random as rnd
 from tensorly.decomposition import parafac
+from tensorly.cp_tensor import cp_to_tensor
 
 # Set print to print matrices and vectors in one line
 np.set_printoptions(linewidth=np.inf)
@@ -90,8 +91,22 @@ def set_to_zero(indices, numbers):
 
 
 def get_CP_decomposition(tensor, max_rank):
-    factors = parafac(tensor, rank=max_rank, normalize_factors=False)[1]
+    factors = parafac(tensor, rank=max_rank, normalize_factors=False)
     return factors
+
+
+def reconstruct_CP(cp):
+    return cp_to_tensor(cp)
+
+
+def get_norm(cp, original):
+    t = reconstruct_CP(cp)
+    difference = original - t
+    print("DIFFERENCE \n", difference)
+    f_norm = np.linalg.norm(difference)
+    original_norm = np.linalg.norm(original)
+    norm = f_norm / original_norm
+    return norm
 
 
 def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
