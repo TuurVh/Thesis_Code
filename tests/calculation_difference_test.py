@@ -1,6 +1,5 @@
-from ACA_implementations import aca_k_vectors, aca_matrix_x_vector, compare_cp_with_full, \
-    compare_aca_original
-from ACA_T import aca_tensor
+from ACA_T_matrix import aca_matrix_x_vector, compare_aca_original
+from ACA_T_vectors import aca_tensor
 import plot_utils
 import numpy as np
 
@@ -24,7 +23,7 @@ def amount_calculations(big_t, max_rank, random_seed, method=''):
 
 
 def main():
-    path = "tensors/full_tensor.npy"
+    path = "../tensors/full_tensor.npy"
     tensor = np.load(path)
 
     max_rang = 50

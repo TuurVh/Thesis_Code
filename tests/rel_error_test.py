@@ -1,7 +1,6 @@
-from ACA_implementations import aca_tensor, aca_k_vectors, aca_matrix_x_vector, compare_aca_original
-from ACA_implementations import compare_cp_with_full
-from ACA_T import aca_tensor as aca_vects
-from ACA_T import get_CP_decomposition, get_norm
+from ACA_T_matrix import aca_matrix_x_vector, compare_aca_original
+from ACA_T_vectors import aca_tensor as aca_vects
+from ACA_T_vectors import get_CP_decomposition, get_norm
 import plot_utils
 import numpy as np
 
@@ -27,7 +26,7 @@ def get_rel_error(tensor, max_rank, rds, method=''):
 
 
 def main():
-    path = "tensors/full_tensor.npy"
+    path = "../tensors/full_tensor.npy"
     big_t = np.load(path)
     shape = big_t.shape
 

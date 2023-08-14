@@ -2,7 +2,7 @@ import random
 import numpy as np
 import tensorly as tl
 import logging
-import plot_utils
+from tests import plot_utils
 from math import sqrt
 
 # Create logger

@@ -1,6 +1,5 @@
-from ACA_implementations import aca_matrix_x_vector
-from ACA_T import aca_tensor, get_CP_decomposition
-from ACA_implementations import compare_cp_with_full
+from ACA_T_matrix import aca_matrix_x_vector
+from ACA_T_vectors import aca_tensor, get_CP_decomposition
 from cluster_utils import *
 import plot_utils
 import numpy as np
@@ -99,7 +98,7 @@ def get_k_means(big_t, method, max_rank):
 
 
 def main():
-    path = "tensors/full_tensor.npy"
+    path = "../tensors/full_tensor.npy"
     big_t = np.load(path)
     k = 6
     max_rang = 45

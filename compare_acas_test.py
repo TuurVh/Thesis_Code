@@ -1,11 +1,8 @@
-from ACA_implementations import aca_tensor, aca_k_vectors, aca_matrix_x_vector, compare_cp_with_full
-from ACA_tensor import aca_tensor as aca2
-from ACA_T import aca_tensor as aca_t
-import plot_utils
-import tensorly as tl
-from tensorly.decomposition import parafac
+from ACA_T_matrix import aca_matrix_x_vector
+from ACA_T_vectors import aca_tensor as aca_t
+from tests import plot_utils
 import numpy as np
-from test_utils import tensor_symmetric_test
+from tests.test_utils import tensor_symmetric_test
 
 # Set print to print matrices and vectors in one line
 np.set_printoptions(linewidth=np.inf, suppress=True)
@@ -65,10 +62,10 @@ def main():
     big_t = np.load(path)
 
     # big_t = random_tensor((5, 6, 6), 1, 20, seed=3)
-    print(big_t)
+    # print(big_t)
 
     print(f"Tensor is symmetric? -> {tensor_symmetric_test(big_t)}")
-    compare_acas(big_t, max_rank=42, random_seed=2, plot=True)
+    compare_acas(big_t, max_rank=5, random_seed=2, plot=True)
 
 
 if __name__ == "__main__":

@@ -4,9 +4,6 @@ import random as rnd
 from tensorly.decomposition import parafac
 from tensorly.cp_tensor import cp_to_tensor
 
-# Set print to print matrices and vectors in one line
-np.set_printoptions(linewidth=np.inf)
-
 
 def generate_samples_less(tensor):
     k, j, i = tensor.shape
@@ -22,7 +19,6 @@ def generate_samples_less(tensor):
         inds[mat, 0] = z
         inds[mat, 1] = x
         inds[mat, 2] = y
-        print(x, y, z)
         vals[mat] = get_element(x, y, z, tensor)
     return inds, vals
 
@@ -102,7 +98,6 @@ def reconstruct_CP(cp):
 def get_norm(cp, original):
     t = reconstruct_CP(cp)
     difference = original - t
-    print("DIFFERENCE \n", difference)
     f_norm = np.linalg.norm(difference)
     original_norm = np.linalg.norm(original)
     norm = f_norm / original_norm
@@ -132,9 +127,7 @@ def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
 
     # Generate random samples for stopping criteria
     sample_indices, sample_values = generate_samples(tensor)
-    print(f"Sample indices: {sample_indices} \n with sample values {sample_values}")
     sample_size = len(sample_values)
-    print("amount samples", sample_size)
 
     # Initialize starting row based on the samples
     index_sample_max = np.argmax(np.abs(sample_values))
@@ -147,53 +140,39 @@ def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
 
     # Select new skeletons until desired rank is reached.
     while rank < max_rank:
-        print(" -- RANK ", rank+1, " --")
         # works with symmetric frontal matrices so take the same index row and column!
         # --------- ROWS ---------
         row_fiber = get_fiber(tensor, k=z_as, j=y_as)
-        print("row before", row_fiber)
         approx = np.zeros(len(row_fiber))
         for r in range(rank):
             approx = np.add(approx, rows[r] * cols[r][y_as] * tubes[r][z_as] * (1.0/r_deltas[r]) * (1.0/c_deltas[r]))
 
         new_row = np.subtract(row_fiber, approx)
-        print("newrw", new_row)
 
         # Update row to not choose same again
-
         r_max_val, x_as = find_largest_absolute_value(new_row)
-        print("max", r_max_val)
 
         if r_max_val == 0.0:
             index_sample_max = np.argmax(np.abs(sample_values))
             [z_as, x_as, y_as] = sample_indices[index_sample_max]
-            print("takes", sample_indices[index_sample_max] )
             continue
-        print("x_as", x_as)
 
         # --------- COLS ---------
         col_fiber = get_fiber(tensor, k=z_as, i=x_as)
-        print("col before", col_fiber)
         approx = np.zeros(len(col_fiber))
         for r in range(rank):
             approx = np.add(approx, rows[r][x_as] * cols[r] * tubes[r][z_as] * (1.0/r_deltas[r]) * (1.0/c_deltas[r]))
-        print("approx", approx)
         new_col = np.subtract(col_fiber, approx)
-        print("newcol", new_col)
 
         c_max_val, y_as = find_largest_absolute_value(new_col)
-        print("y_as", y_as)
 
         # --------- TUBES ---------
         tube_fiber = get_fiber(tensor, i=x_as, j=y_as)
-        print("tubef", tube_fiber)
         approx = np.zeros(len(tube_fiber))
         for r in range(rank):
             approx = np.add(approx, rows[r][x_as] * cols[r][y_as] * tubes[r] * (1.0/r_deltas[r]) * (1.0/c_deltas[r]))
-        print("approx", approx)
 
         new_tube = np.subtract(tube_fiber, approx)
-        print("NT", new_tube)
 
         # Update tube to not choose same row again
         if rank > 0:
@@ -207,7 +186,6 @@ def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
             tube_without_previous = new_tube
 
         t_max_val, z_as = find_largest_absolute_value(tube_without_previous)
-        print('z_as', z_as)
 
         # Append all
         r_deltas.append(r_max_val)
@@ -228,14 +206,11 @@ def aca_tensor(tensor, max_rank, random_seed=None, to_cluster=False):
             temp_sample = sample_values[s]
             sample_values[s] = temp_sample - (rows[rank][x_] * cols[rank][y_] * tubes[rank][z_] *
                                               (1.0/c_deltas[rank]) * (1.0 / r_deltas[rank]))
-        print("new vals", sample_values)
         # Find new largest value in sample_values
         index_sample_max = np.argmax(np.abs(sample_values))
         max_sample = sample_values[index_sample_max]
 
-        print("z", t_max_val, "max res", max_sample)
         if np.abs(t_max_val) < max_sample - 0.001:
-            print("so on pos:", sample_indices[index_sample_max])
             [z_as, x_as, y_as] = sample_indices[index_sample_max]
 
         matrices = preprocess_to_matrices(cols, rows, r_deltas)
@@ -283,14 +258,12 @@ def compare_aca_original(matrices, tubes, m_delta, original):
         matrix = np.divide(matrices[i], m_delta[i])
         tube = tubes[i]
         t += np.einsum('i,jk->ijk', tube, matrix)
-    print("RECON", t)
     # Fill diagonal of each frontal matrix in tensor with zeros
     for i in range(len(t)):
         np.fill_diagonal(t[i], 0)
 
     # Compare with original tensor
     difference = original-t
-    print("DIFFERENCE \n", difference)
     f_norm = np.linalg.norm(difference)
     original_norm = np.linalg.norm(original)
     norm = f_norm/original_norm

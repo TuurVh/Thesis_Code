@@ -47,11 +47,11 @@ def get_GT(feature_vects):
         # exercise_mapping = {'squat': 0, 'lunge': 1, 'sidelunge': 2}
         # GT_list = [exercise_mapping[exercise] for exercise in data['exercise']]
 
-        data = pd.read_csv('GT_rows.csv')
+        data = pd.read_csv('../GT_rows.csv')
         column_values = data['GT']
         GT_list = column_values.tolist()
     else:
-        data = pd.read_csv('GT_tubes.csv')
+        data = pd.read_csv('../GT_tubes.csv')
         column_values = data['GT']
         GT_list = column_values.tolist()
 
