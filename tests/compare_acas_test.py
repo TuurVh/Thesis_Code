@@ -58,7 +58,7 @@ def compare_acas(big_t, max_rank, random_seed, plot=False):
         # plotting.plot_amount_calcs(big_t, k_hat, max_rank)
 
 def main():
-    path = "tensors/full_tensor.npy"
+    path = "../tensors/full_tensor.npy"
     big_t = np.load(path)
 
     # big_t = random_tensor((5, 6, 6), 1, 20, seed=3)

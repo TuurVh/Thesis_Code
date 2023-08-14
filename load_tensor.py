@@ -156,6 +156,7 @@ def save_overview(path):
     df = pd.DataFrame(overview)
     df.to_csv("overview.csv")
 
+
 path = "data/amie-kinect-data.hdf"
 
 # start_time = time.time()
@@ -167,7 +168,7 @@ path = "data/amie-kinect-data.hdf"
 # T = make_short_tensor(path, amount_columns=9, vids=40, save_tensor=True)
 # for a in range(50, 76, 10):
 #     save = "tensors/person2-3-5_all_ex_" + str(a) + "ts"
-T = choose_skeletons_tensor(path, amount_ts=75, persons=["person2", "person3"], save_tensor_to="tensors/person2-3-ALL-normalized")
+# T = choose_skeletons_tensor(path, amount_ts=75, persons=["person2", "person3"], save_tensor_to="tensors/person2-3-ALL-normalized")
 # T = choose_skeletons_tensor(path, amount_ts=75, exercises=["squat"], save_tensor_to="tensors/all_p_squat")
-print("shape: ", T.shape)
-print("tensor: ", T)
+# print("shape: ", T.shape)
+# print("tensor: ", T)
